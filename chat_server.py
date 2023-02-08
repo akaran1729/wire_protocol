@@ -4,6 +4,8 @@ import select
 import sys
 '''Replace "thread" with "_thread" for python 3'''
 from _thread import *
+from threading import Lock
+
  
 """The first argument AF_INET is the address domain of the
 socket. This is used when we have an Internet Domain with
@@ -13,39 +15,108 @@ a continuous flow."""
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
  
-# checks whether sufficient arguments have been provided
 if len(sys.argv) != 3:
     print ("Correct usage: script, IP address, port number")
     exit()
  
-# takes the first argument from command prompt as IP address
+# IP address is first argument
 IP_address = str(sys.argv[1])
  
-# takes second argument from command prompt as port number
-Port = int(sys.argv[2])
+# Port number is second argument
+port = int(sys.argv[2])
  
-"""
-binds the server to an entered IP address and at the
-specified port number.
-The client must be aware of these parameters
-"""
-server.bind((IP_address, Port))
+# Server initialized at input IP address and port
+server.bind((IP_address, port))
  
-"""
-listens for 100 active connections. This number can be
-increased as per convenience.
-"""
-server.listen(100)
+#maintains at most N active connections
+N = 10
+server.listen(N)
+
+
+#client username dictionary, with login status: 0 if logged off, corresponding address if logged in
+client_dictionary = {}
+
+#lock for dictionary
+dict_lock = Lock()
+
  
-list_of_clients = []
- 
+
+
 def clientthread(conn, addr):
+
+    # maintain a client_state variable as logged in or logged off
+    # while logged off, client_state = False
+    client_state = False
  
     # sends a message to the client whose user object is conn
-    message = "Welcome to this chatroom!"
+    message = "Welcome to Messenger! Please login or create an account:"
     conn.send(message.encode())
+
+
+    # client can only create an account or login while client state is False
+    # To Do: Add locking on client dictionary
+    while client_state == False:
+        try:
+            message = conn.recv(2048)
+            # check if message is of type create account or login
+            # wire protocol demands initial byte is either 0 (create) or 1 (login) here
+            tag = message[0]
+            
+            # account creation
+            if tag == 0:
+                username = message[1:]
+                username = username.decode()
+                # If the username is in existence, server asks to retry.
+
+                # acquire lock for client_dictionary, with timeout in case of failure
+                dict_lock.acquire(timeout=10)
+
+                if username in client_dictionary.keys():
+                    message = "The account " + username + " already exists. Please try again."
+                    conn.send(message.encode())
+                else:
+                    client_dictionary[username] = addr
+                    message = "Account created. Welcome " + username + "!"
+                    conn.send(message.encode())
+                    client_state = True
+                
+                dict_lock.release()
+
+
+            
+            # login
+            if tag == 1:
+                username = message[1:]
+                username = username.decode()
+
+                # acquire lock for client_dictionary, with timeout in case of failure
+                dict_lock.acquire(timeout=10)
+
+                if username not in client_dictionary.keys():
+                    message = "Username not found. Please try again."
+                    conn.send(message.encode())
+                else:
+                    # Check if username logged in elsewhere (i.e. dictionary returns 1)
+                    if client_dictionary[username] != 0:
+                        message = "Username logged in elsewhere. Please try again."
+                        conn.send(message.encode())
+                    else:
+                        client_dictionary[username] = addr
+                        message = "Welcome back " + username + "!"
+                        conn.send(message.encode())
+                        client_state = True
+                        
+                dict_lock.release()
+                        
+        except:
+            continue
+
  
-    while True:
+    # now suppose that the client is logged in
+    # To Do: dump queue of messages
+    # allowable actions are: list accounts, send message, log off, delete account
+    
+    while client_state == True:
             try:
                 message = conn.recv(2048)
                 if message:
