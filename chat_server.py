@@ -32,6 +32,9 @@ server.bind((IP_address, port))
 N = 10
 server.listen(N)
 
+#maintains a list of potential clients
+list_of_clients = []
+
 
 #client username dictionary, with login status: 0 if logged off, corresponding address if logged in
 client_dictionary = {}
@@ -39,6 +42,8 @@ client_dictionary = {}
 #lock for dictionary
 dict_lock = Lock()
 
+# message queues per username
+message_queue = {}
  
 
 
@@ -54,7 +59,6 @@ def clientthread(conn, addr):
 
 
     # client can only create an account or login while client state is False
-    # To Do: Add locking on client dictionary
     while client_state == False:
         try:
             message = conn.recv(2048)
@@ -105,7 +109,7 @@ def clientthread(conn, addr):
                         message = "Welcome back " + username + "!"
                         conn.send(message.encode())
                         client_state = True
-                        
+
                 dict_lock.release()
                         
         except:
@@ -116,49 +120,65 @@ def clientthread(conn, addr):
     # To Do: dump queue of messages
     # allowable actions are: list accounts, send message, log off, delete account
     
-    while client_state == True:
-            try:
-                message = conn.recv(2048)
-                if message:
+    # while client_state == True:
+    #         try:
+    #             # dump message queue
+
+
+    #             # after dumping
+    #             message = conn.recv(2048)
+    #             tag = message[0]
+
+
+
+
+    #             if message:
  
-                    """prints the message and address of the
-                    user who just sent the message on the server
-                    terminal"""
-                    print(f"<{addr[0]}> ", message.decode())
+    #                 """prints the message and address of the
+    #                 user who just sent the message on the server
+    #                 terminal"""
+    #                 print(f"<{addr[0]}> ", message.decode())
  
-                    # Calls broadcast function to send message to all
-                    message_to_send = f"<{addr[0]}> {message.decode()}" 
-                    broadcast(message_to_send, conn)
+    #                 # Calls broadcast function to send message to all
+    #                 message_to_send = f"<{addr[0]}> {message.decode()}" 
+    #                 broadcast(message_to_send, conn)
  
-                else:
-                    """message may have no content if the connection
-                    is broken, in this case we remove the connection"""
-                    remove(conn)
+    #             else:
+    #                 """message may have no content if the connection
+    #                 is broken, in this case we remove the connection"""
+    #                 remove(conn)
  
-            except:
-                continue
+    #         except:
+    #             continue
+
+
+
+
+
+
+
  
-"""Using the below function, we broadcast the message to all
-clients who's object is not the same as the one sending
-the message """
-def broadcast(message, connection):
-    for clients in list_of_clients:
-        if clients!=connection:
-            try:
-                clients.send(message.encode())
-            except:
-                clients.close()
+# """Using the below function, we broadcast the message to all
+# clients who's object is not the same as the one sending
+# the message """
+# def broadcast(message, connection):
+#     for clients in list_of_clients:
+#         if clients!=connection:
+#             try:
+#                 clients.send(message.encode())
+#             except:
+#                 clients.close()
  
-                # if the link is broken, we remove the client
-                remove(clients)
+#                 # if the link is broken, we remove the client
+#                 remove(clients)
  
-"""The following function simply removes the object
-from the list that was created at the beginning of
-the program"""
-def remove(connection):
-    if connection in list_of_clients:
-        print(f"{connection} has left")
-        list_of_clients.remove(connection)
+# """The following function simply removes the object
+# from the list that was created at the beginning of
+# the program"""
+# def remove(connection):
+#     if connection in list_of_clients:
+#         print(f"{connection} has left")
+#         list_of_clients.remove(connection)
  
 while True:
  
@@ -173,7 +193,7 @@ while True:
     list_of_clients.append(conn)
  
     # prints the address of the user that just connected
-    print (addr[0] + " connected")
+    print(addr[0] + " connected")
  
     # creates and individual thread for every user
     # that connects
