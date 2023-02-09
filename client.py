@@ -14,11 +14,13 @@ server.connect((IP_address, Port))
 
 # always returns encoded message
 def append_tag(message):
-    if message.find('Create Account:') == 0:
+    if message.find('Create Account: ') == 0:
+        message = message[16:]
         message = message.encode()
         tag = (0).to_bytes(1, "big")
-    elif message.find('Login:') == 0:
+    elif message.find('Login: ') == 0:
         message = message.encode()
+        message = message[6:]
         tag = (1).to_bytes(1, "big")
     else:
         print('formatting error')

@@ -59,12 +59,13 @@ def clientthread(conn, addr):
 
 
     # client can only create an account or login while client state is False
+    # To Do: big endian byte interpretation
     while client_state == False:
         try:
             message = conn.recv(2048)
             # check if message is of type create account or login
             # wire protocol demands initial byte is either 0 (create) or 1 (login) here
-            tag = message[0]
+            tag = int.from_bytes(message[0], "big")
             
             # account creation
             if tag == 0:
