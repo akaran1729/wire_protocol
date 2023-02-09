@@ -65,7 +65,8 @@ def clientthread(conn, addr):
             message = conn.recv(2048)
             # check if message is of type create account or login
             # wire protocol demands initial byte is either 0 (create) or 1 (login) here
-            tag = int.from_bytes(message[0], "big")
+            # tag = int.from_bytes(message[0], "big")
+            tag = message[0]
             
             # account creation
             if tag == 0:
@@ -110,8 +111,10 @@ def clientthread(conn, addr):
                         message = "Welcome back " + username + "!"
                         conn.send(message.encode())
                         client_state = True
-
+                print(client_dictionary)
                 dict_lock.release()
+
+
                         
         except:
             continue
@@ -121,36 +124,43 @@ def clientthread(conn, addr):
     # To Do: dump queue of messages
     # allowable actions are: list accounts, send message, log off, delete account
     
-    # while client_state == True:
-    #         try:
-    #             # dump message queue
+    while client_state == True:
+            try:
+                # dump message queue
 
 
-    #             # after dumping
-    #             message = conn.recv(2048)
-    #             tag = message[0]
+                # after dumping
+                message = conn.recv(2048)
+                tag = message[0]
 
 
 
 
-    #             if message:
+                if message:
+                    if tag == 2: 
+                        username = [i for i in client_dictionary if client_dictionary[i]==addr]
+                        dict_lock.acquire(timeout=10)
+                        for user in username:
+                            client_dictionary[username[0]] = 0 ## not sure how to handle multiple addresses 
+                        print(client_dictionary)
+                        dict_lock.release()
  
-    #                 """prints the message and address of the
-    #                 user who just sent the message on the server
-    #                 terminal"""
-    #                 print(f"<{addr[0]}> ", message.decode())
+                #     """prints the message and address of the
+                #     user who just sent the message on the server
+                #     terminal"""
+                #     print(f"<{addr[0]}> ", message.decode())
  
-    #                 # Calls broadcast function to send message to all
-    #                 message_to_send = f"<{addr[0]}> {message.decode()}" 
-    #                 broadcast(message_to_send, conn)
+                #     # Calls broadcast function to send message to all
+                #     message_to_send = f"<{addr[0]}> {message.decode()}" 
+                #     broadcast(message_to_send, conn)
  
-    #             else:
-    #                 """message may have no content if the connection
-    #                 is broken, in this case we remove the connection"""
-    #                 remove(conn)
+                # else:
+                #     """message may have no content if the connection
+                #     is broken, in this case we remove the connection"""
+                #     remove(conn)
  
-    #         except:
-    #             continue
+            except:
+                continue
 
 
 
@@ -176,10 +186,10 @@ def clientthread(conn, addr):
 # """The following function simply removes the object
 # from the list that was created at the beginning of
 # the program"""
-# def remove(connection):
-#     if connection in list_of_clients:
-#         print(f"{connection} has left")
-#         list_of_clients.remove(connection)
+def remove(connection):
+    if connection in list_of_clients:
+        print(f"{connection} has left")
+        list_of_clients.remove(connection)
  
 while True:
  
