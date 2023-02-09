@@ -2,20 +2,36 @@
 import socket
 import select
 import sys
- 
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 if len(sys.argv) != 3:
-    print ("Correct usage: script, IP address, port number")
+    print("Correct usage: script, IP address, port number")
     exit()
 IP_address = str(sys.argv[1])
 Port = int(sys.argv[2])
 server.connect((IP_address, Port))
- 
+
+
+# always returns encoded message
+def append_tag(message):
+    if message.find('Create Account:') == 0:
+        message = message.encode()
+        tag = (0).to_bytes(1, "big")
+    elif message.find('Login:') == 0:
+        message = message.encode()
+        tag = (1).to_bytes(1, "big")
+    else:
+        print('formatting error')
+        return
+    bmsg = tag + message
+    return bmsg
+
+
 while True:
- 
+
     # maintains a list of possible input streams
     sockets_list = [sys.stdin, server]
- 
+
     """ There are two possible input situations. Either the
     user wants to give manual input to send to other people,
     or the server is sending a message to be printed on the
@@ -24,8 +40,9 @@ while True:
     to send a message, then the if condition will hold true
     below.If the user wants to send a message, the else
     condition will evaluate as true"""
-    read_sockets,write_socket, error_socket = select.select(sockets_list,[],[])
- 
+    read_sockets, write_socket, error_socket = select.select(
+        sockets_list, [], [])
+
     for socks in read_sockets:
         if socks == server:
             message = socks.recv(2048)
@@ -33,9 +50,8 @@ while True:
             print(dmessage)
         else:
             message = sys.stdin.readline()
-            bmsg = message.encode()
-            server.send(bmsg)
-            sys.stdout.write("<You>")
-            sys.stdout.write(message)
-            sys.stdout.flush()
+            bmsg = append_tag(message)
+            if bmsg and bmsg[0] != 4:
+                server.send(bmsg)
+                sys.stdout.flush()
 server.close()
