@@ -14,6 +14,7 @@ server.connect((IP_address, Port))
 
 # always returns encoded message
 def append_tag(message):
+    message.rstrip()
     if message.find('Create Account: ') == 0:
         message = message[16:]  # remove function instead
         message = message.encode()
@@ -22,7 +23,7 @@ def append_tag(message):
         message = message[7:]
         message = message.encode()
         tag = (1).to_bytes(1, "big")
-    elif message.find('Logoff: '):
+    elif message.find('Logoff: ') == 0 or message.find('Logout: '):
         message = message[8:]
         message = message.encode()
         tag = (2).to_bytes(1, "big")
@@ -58,6 +59,9 @@ while True:
             message = sys.stdin.readline()
             bmsg = append_tag(message)
             if bmsg and bmsg[0] != 4:
-                server.send(bmsg)
-                sys.stdout.flush()
+                try: 
+                    server.send(bmsg)
+                    sys.stdout.flush()
+                except: 
+                    print('message could not send')
 server.close()

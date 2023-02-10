@@ -30,7 +30,7 @@ server.bind((IP_address, port))
  
 #maintains at most N active connections
 N = 10
-server.listen(N)
+server.listen()
 
 #maintains a list of potential clients
 list_of_clients = []
@@ -38,6 +38,7 @@ list_of_clients = []
 
 #client username dictionary, with login status: 0 if logged off, corresponding address if logged in
 client_dictionary = {}
+
 
 #lock for dictionary
 dict_lock = Lock()
@@ -49,123 +50,156 @@ message_queue = {}
 
 def clientthread(conn, addr):
 
-    # maintain a client_state variable as logged in or logged off
-    # while logged off, client_state = False
-    client_state = False
- 
-    # sends a message to the client whose user object is conn
-    message = "Welcome to Messenger! Please login or create an account:"
-    conn.send(message.encode())
+    client_state = True
+    logged_in = False
+    while client_state: 
+
+        # maintain a state variable as logged in or logged off
+        # while logged off, logged_in = False
+        print("here again")
+        # sends a message to the client whose user object is conn
+        message = "Welcome to Messenger! Please login or create an account:"
+        conn.sendall(message.encode())
 
 
-    # client can only create an account or login while client state is False
-    # To Do: big endian byte interpretation
-    while client_state == False:
-        try:
-            message = conn.recv(2048)
-            # check if message is of type create account or login
-            # wire protocol demands initial byte is either 0 (create) or 1 (login) here
-            # tag = int.from_bytes(message[0], "big")
-            tag = message[0]
-            
-            # account creation
-            if tag == 0:
-                username = message[1:]
-                username = username.decode()
-                # If the username is in existence, server asks to retry.
-
-                # acquire lock for client_dictionary, with timeout in case of failure
-                dict_lock.acquire(timeout=10)
-
-                if username in client_dictionary.keys():
-                    message = "The account " + username + " already exists. Please try again."
-                    conn.send(message.encode())
-                else:
-                    client_dictionary[username] = addr
-                    message = "Account created. Welcome " + username + "!"
-                    conn.send(message.encode())
-                    client_state = True
+        # client can only create an account or login while client state is False
+        # To Do: big endian byte interpretation
+        while logged_in == False:
+            try:
+                message = conn.recv(2048)
+                # check if message is of type create account or login
+                # wire protocol demands initial byte is either 0 (create) or 1 (login) here
+                # tag = int.from_bytes(message[0], "big")
+                tag = message[0]
                 
-                dict_lock.release()
+                # account creation
+                if tag == 0:
+                    username = message[1:]
+                    username = username.decode()
+                    # If the username is in existence, server asks to retry.
 
+                    # acquire lock for client_dictionary, with timeout in case of failure
+                    dict_lock.acquire(timeout=10)
 
-            
-            # login
-            if tag == 1:
-                username = message[1:]
-                username = username.decode()
-
-                # acquire lock for client_dictionary, with timeout in case of failure
-                dict_lock.acquire(timeout=10)
-
-                if username not in client_dictionary.keys():
-                    message = "Username not found. Please try again."
-                    conn.send(message.encode())
-                else:
-                    # Check if username logged in elsewhere (i.e. dictionary returns 1)
-                    if client_dictionary[username] != 0:
-                        message = "Username logged in elsewhere. Please try again."
-                        conn.send(message.encode())
+                    if username in client_dictionary.keys():
+                        message = "The account " + username + " already exists. Please try again."
+                        conn.sendall(message.encode())
                     else:
                         client_dictionary[username] = addr
-                        message = "Welcome back " + username + "!"
-                        conn.send(message.encode())
-                        client_state = True
-                print(client_dictionary)
-                dict_lock.release()
+                        message = "Account created. Welcome " + username + "!"
+                        conn.sendall(message.encode())
+                        logged_in = True
+                    
+                    dict_lock.release()
 
 
-                        
-        except:
-            continue
+                
+                # login
+                if tag == 1:
+                    username = message[1:]
+                    username = username.decode()
 
- 
-    # now suppose that the client is logged in
-    # To Do: dump queue of messages
-    # allowable actions are: list accounts, send message, log off, delete account
-    
-    while client_state == True:
-            try:
-                # dump message queue
+                    # acquire lock for client_dictionary, with timeout in case of failure
+                    dict_lock.acquire(timeout=10)
+
+                    if username not in client_dictionary.keys():
+                        message = "Username not found. Please try again."
+                        conn.sendall(message.encode())
+                    else:
+                        # Check if username logged in elsewhere (i.e. dictionary returns 1)
+                        if client_dictionary[username] != 0:
+                            message = "Username logged in elsewhere. Please try again."
+                            conn.sendall(message.encode())
+                        else:
+                            client_dictionary[username] = addr
+                            message = "Welcome back " + username + "!"
+                            conn.sendall(message.encode())
+                            logged_in = True
+                    print(client_dictionary)
+                    dict_lock.release()
 
 
-                # after dumping
-                message = conn.recv(2048)
-                tag = message[0]
-
-
-
-
-                if message:
-                    if tag == 2: 
-                        username = [i for i in client_dictionary if client_dictionary[i]==addr]
-                        dict_lock.acquire(timeout=10)
-                        for user in username:
-                            client_dictionary[username[0]] = 0 ## not sure how to handle multiple addresses 
-                        print(client_dictionary)
-                        dict_lock.release()
- 
-                #     """prints the message and address of the
-                #     user who just sent the message on the server
-                #     terminal"""
-                #     print(f"<{addr[0]}> ", message.decode())
- 
-                #     # Calls broadcast function to send message to all
-                #     message_to_send = f"<{addr[0]}> {message.decode()}" 
-                #     broadcast(message_to_send, conn)
- 
-                # else:
-                #     """message may have no content if the connection
-                #     is broken, in this case we remove the connection"""
-                #     remove(conn)
- 
+                            
             except:
                 continue
 
+    
+        # now suppose that the client is logged in
+        # To Do: dump queue of messages
+        # allowable actions are: list accounts, send message, log off, delete account
+        
+        while logged_in == True:
+                try:
+                    # dump message queue
+
+
+                    # after dumping
+                    message = conn.recv(2048)
+                    tag = message[0]
+
+                    if message:
+                        if tag == 2: 
+                            logout()
+                            logged_in = False
+                    
+                        if tag == 3: ## start of delete account
+                            username = message[1:]
+                            dict_lock.acquire(timeout=10)
+                            client_dictionary.pop(username)
+                            print(client_dictionary)
+                            logout()
+                            logged_in = False
+                            dict_lock.release()
+                        
+                        if tag == 4: 
+                            send_message(message)
+    
+                    #     """prints the message and address of the
+                    #     user who just sent the message on the server
+                    #     terminal"""
+                    #     print(f"<{addr[0]}> ", message.decode())
+    
+                    #     # Calls broadcast function to send message to all
+                    #     message_to_send = f"<{addr[0]}> {message.decode()}" 
+                    #     broadcast(message_to_send, conn)
+    
+                    else:
+                        """message may have no content if the connection
+                        is broken, in this case we remove the connection"""
+                        remove(conn)
+        
+                except:
+                    continue
 
 
 
 
+
+def logout(): 
+    username = [i for i in client_dictionary if client_dictionary[i]==addr]
+    dict_lock.acquire(timeout=10)
+    message = "Successfully logged off: "
+    for user in username:
+        client_dictionary[user] = 0 
+        message += user + " "
+    print(client_dictionary)
+    conn.sendall(message.encode())
+    dict_lock.release()
+
+def send_message(message): 
+    sender = [i for i in client_dictionary if client_dictionary[i]==addr]
+    receiver = message[2:]
+    proc_message = "<" + sender + "> " + message[3:]
+    dict_lock.acquire(timeout=10)
+    if client_dictionary[receiver] != 0: 
+        rec_conn = client_dictionary.find(receiver[1])
+        rec_conn.sendall(proc_message.encode())
+        conn.send("delivered".encode())
+    else: 
+        message_queue[receiver] += message
+    
+
+        
 
 
  
