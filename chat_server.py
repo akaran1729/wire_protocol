@@ -120,33 +120,27 @@ def clientthread(conn, addr):
                             conn.sendall(message.encode())
                             logged_in = True
                     print(client_dictionary)
-                    dict_lock.release()
-
-
-                            
+                    dict_lock.release() 
             except:
                 continue
 
     
         # now suppose that the client is logged in
-        # To Do: dump queue of messages
-        # allowable actions are: list accounts, send message, log off, delete account
+        # allowable actions are: list accounts, send message, log off, delete account, dump queue
         
         while logged_in == True:
             try:
                 message = conn.recv(2048)
-                tag = message[0]
 
                 if message:
+                    tag = message[0]
                     # Logout
                     if tag == 2:
                         #Acquire dict lock, change logged in state to false and remove address info in client dictionary 
-                        dict_lock.acquire(timeout=10)
-                        logged_in = False
-                        client_dictionary[username] = 0
-                        dict_lock.release()
+                        logout(username)
                         message = username + " successfully logged out."
                         conn.sendall(message.encode())
+                        logged_in = False
                 
                     # Delete Account
                     if tag == 3: ## start of delete account
@@ -159,13 +153,14 @@ def clientthread(conn, addr):
                         message = "Account " + username + " successfully deleted."
                         conn.sendall(message.encode())
                     
-                    #Send Message, To Do: 
+                    #Send Message 
                     if tag == 4: 
                         # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
                         length_of_recep = message[1]
                         recep_username = message[2:2+length_of_recep]
 
                         dict_lock.acquire(timeout=10)
+                        # To Do: Should we make this more granular with locking? Like variables for recep in client_dictionary
                         # Checks if recipeint is actually a possible recipient
                         if recep_username not in client_dictionary.keys():
                             message = "Sorry, message recipient not found. Please try again."
@@ -179,11 +174,17 @@ def clientthread(conn, addr):
                             else:
                                 recep_conn = client_dictionary[username]
                                 new_message = "<"+username+">: " + text_message
-                                recep_conn.sendall(new_message.encode())
-                        # To Do: Ask about blocking and ask about timeouts?
+                                r = recep_conn.sendall(new_message.encode())
+                                # If sending fails, let the sender know; otherwise, send confirmation to sender
+                                if r < 0:
+                                    error_message = "Sorry, message could not be sent. Please try again."
+                                    conn.sendall(error_message.encode())
+                                else:
+                                    confirmation_message = "Message successfully sent."
+                                    conn.sendall(confirmation_message.encode())
+
+                        # To Do: Ask about blocking and ask about timeouts? What happened if send fails?
                         dict_lock.release()
-
-
 
                     #Dump Message queue
                     if tag == 5:
@@ -200,30 +201,45 @@ def clientthread(conn, addr):
                 else:
                     """message may have no content if the connection
                     is broken, in this case we remove the connection"""
-                    remove(conn)
+                    # To Do: Log out if connection is broken; how do we check if connection breaks?
+                    remove(conn, username)
+                    # To Do: How to check if connection still present
     
             except:
                 continue
 
 
 
+ 
 
 
-
-    
-    
-
-def send_message(message): 
-    sender = [i for i in client_dictionary if client_dictionary[i]==addr]
-    receiver = message[2:]
-    proc_message = "<" + sender + "> " + message[3:]
+def logout(username):
     dict_lock.acquire(timeout=10)
-    if client_dictionary[receiver] != 0: 
-        rec_conn = client_dictionary.find(receiver[1])
-        rec_conn.sendall(proc_message.encode())
-        conn.send("delivered".encode())
-    else: 
-        message_queue[receiver] += message
+    client_dictionary[username] = 0
+    dict_lock.release()
+    # To Do: What happens if these fail
+
+
+def remove(connection, username):
+    # If connection breaks, automatically logs username out
+    logout(username)
+    if connection in list_of_clients:
+        print(f"{connection} has left")
+        list_of_clients.remove(connection)
+    
+    
+
+# def send_message(message): 
+#     sender = [i for i in client_dictionary if client_dictionary[i]==addr]
+#     receiver = message[2:]
+#     proc_message = "<" + sender + "> " + message[3:]
+#     dict_lock.acquire(timeout=10)
+#     if client_dictionary[receiver] != 0: 
+#         rec_conn = client_dictionary.find(receiver[1])
+#         rec_conn.sendall(proc_message.encode())
+#         conn.send("delivered".encode())
+#     else: 
+#         message_queue[receiver] += message
     
 
         
@@ -247,11 +263,7 @@ def send_message(message):
 # """The following function simply removes the object
 # from the list that was created at the beginning of
 # the program"""
-def remove(connection):
-    if connection in list_of_clients:
-        print(f"{connection} has left")
-        list_of_clients.remove(connection)
- 
+
 while True:
  
     """Accepts a connection request and stores two parameters,
