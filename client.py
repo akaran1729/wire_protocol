@@ -12,6 +12,14 @@ Port = int(sys.argv[2])
 server.connect((IP_address, Port))
 
 
+
+# Keywords that client side parses and tags to send to the server
+MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout: ']
+
+
+
+#To Do: limits on message and username lengths
+
 # always returns encoded message
 def append_tag(message):
     message.rstrip()
@@ -30,6 +38,7 @@ def append_tag(message):
     else:
         print('formatting error')
         return
+
     bmsg = tag + message
     return bmsg
 

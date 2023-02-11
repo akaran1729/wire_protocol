@@ -21,6 +21,7 @@ if len(sys.argv) != 3:
  
 # IP address is first argument
 IP_address = str(sys.argv[1])
+
  
 # Port number is second argument
 port = int(sys.argv[2])
@@ -28,7 +29,7 @@ port = int(sys.argv[2])
 # Server initialized at input IP address and port
 server.bind((IP_address, port))
  
-#maintains at most N active connections
+#maintains at most N active connections; To Do: Fix
 N = 10
 server.listen()
 
@@ -52,6 +53,7 @@ def clientthread(conn, addr):
 
     client_state = True
     logged_in = False
+    username = None
     while client_state: 
 
         # maintain a state variable as logged in or logged off
@@ -85,10 +87,12 @@ def clientthread(conn, addr):
                         message = "The account " + username + " already exists. Please try again."
                         conn.sendall(message.encode())
                     else:
-                        client_dictionary[username] = addr
+                        client_dictionary[username] = conn
+                        message_queue[username] = []
                         message = "Account created. Welcome " + username + "!"
                         conn.sendall(message.encode())
                         logged_in = True
+
                     
                     dict_lock.release()
 
@@ -111,7 +115,7 @@ def clientthread(conn, addr):
                             message = "Username logged in elsewhere. Please try again."
                             conn.sendall(message.encode())
                         else:
-                            client_dictionary[username] = addr
+                            client_dictionary[username] = conn
                             message = "Welcome back " + username + "!"
                             conn.sendall(message.encode())
                             logged_in = True
@@ -129,62 +133,85 @@ def clientthread(conn, addr):
         # allowable actions are: list accounts, send message, log off, delete account
         
         while logged_in == True:
-                try:
-                    # dump message queue
+            try:
+                message = conn.recv(2048)
+                tag = message[0]
 
-
-                    # after dumping
-                    message = conn.recv(2048)
-                    tag = message[0]
-
-                    if message:
-                        if tag == 2: 
-                            logout()
-                            logged_in = False
+                if message:
+                    # Logout
+                    if tag == 2:
+                        #Acquire dict lock, change logged in state to false and remove address info in client dictionary 
+                        dict_lock.acquire(timeout=10)
+                        logged_in = False
+                        client_dictionary[username] = 0
+                        dict_lock.release()
+                        message = username + " successfully logged out."
+                        conn.sendall(message.encode())
+                
+                    # Delete Account
+                    if tag == 3: ## start of delete account
+                        #Acquire dict lock, remove username from client dictionary and message_queue
+                        dict_lock.acquire(timeout=10)
+                        client_dictionary.pop(username)
+                        message_queue.pop(username)
+                        logged_in = False
+                        dict_lock.release()
+                        message = "Account " + username + " successfully deleted."
+                        conn.sendall(message.encode())
                     
-                        if tag == 3: ## start of delete account
-                            username = message[1:]
-                            dict_lock.acquire(timeout=10)
-                            client_dictionary.pop(username)
-                            print(client_dictionary)
-                            logout()
-                            logged_in = False
-                            dict_lock.release()
-                        
-                        if tag == 4: 
-                            send_message(message)
+                    #Send Message, To Do: 
+                    if tag == 4: 
+                        # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
+                        length_of_recep = message[1]
+                        recep_username = message[2:2+length_of_recep]
+
+                        dict_lock.acquire(timeout=10)
+                        # Checks if recipeint is actually a possible recipient
+                        if recep_username not in client_dictionary.keys():
+                            message = "Sorry, message recipient not found. Please try again."
+                            conn.sendall(message.encode())
+                        else:
+                            text_message = message[2+length_of_recep:].decode()
+                            # Checks if recipient logged out
+                            if client_dictionary[recep_username] == 0:
+                                message_queue[recep_username].append([username, text_message])
+                            # If logged in, look up connection in dictionary
+                            else:
+                                recep_conn = client_dictionary[username]
+                                new_message = "<"+username+">: " + text_message
+                                recep_conn.sendall(new_message.encode())
+                        # To Do: Ask about blocking and ask about timeouts?
+                        dict_lock.release()
+
+
+
+                    #Dump Message queue
+                    if tag == 5:
+                        # Message Queue preconfigured so it stores packet of username, message
+                        for undelivered in message_queue[username]:
+                            sender = undelivered[0]
+                            undel_message = undelivered[1]
+                            # To Do: username will have /n at the end
+                            message = "<" + sender+ ">: " + undel_message
+                            conn.sendall(message.encode())
+
+                    # To DO: List Accounts
+
+                else:
+                    """message may have no content if the connection
+                    is broken, in this case we remove the connection"""
+                    remove(conn)
     
-                    #     """prints the message and address of the
-                    #     user who just sent the message on the server
-                    #     terminal"""
-                    #     print(f"<{addr[0]}> ", message.decode())
+            except:
+                continue
+
+
+
+
+
+
     
-                    #     # Calls broadcast function to send message to all
-                    #     message_to_send = f"<{addr[0]}> {message.decode()}" 
-                    #     broadcast(message_to_send, conn)
     
-                    else:
-                        """message may have no content if the connection
-                        is broken, in this case we remove the connection"""
-                        remove(conn)
-        
-                except:
-                    continue
-
-
-
-
-
-def logout(): 
-    username = [i for i in client_dictionary if client_dictionary[i]==addr]
-    dict_lock.acquire(timeout=10)
-    message = "Successfully logged off: "
-    for user in username:
-        client_dictionary[user] = 0 
-        message += user + " "
-    print(client_dictionary)
-    conn.sendall(message.encode())
-    dict_lock.release()
 
 def send_message(message): 
     sender = [i for i in client_dictionary if client_dictionary[i]==addr]
