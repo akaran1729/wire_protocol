@@ -5,8 +5,9 @@ import sys
 '''Replace "thread" with "_thread" for python 3'''
 from _thread import *
 from threading import Lock
+import re
 
- 
+
 """The first argument AF_INET is the address domain of the
 socket. This is used when we have an Internet Domain with
 any two hosts The second argument is the type of socket.
@@ -14,39 +15,36 @@ SOCK_STREAM means that data or characters are read in
 a continuous flow."""
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
- 
+
 if len(sys.argv) != 3:
-    print ("Correct usage: script, IP address, port number")
+    print("Correct usage: script, IP address, port number")
     exit()
- 
+
 # IP address is first argument
 IP_address = str(sys.argv[1])
 
- 
+
 # Port number is second argument
 port = int(sys.argv[2])
- 
+
 # Server initialized at input IP address and port
 server.bind((IP_address, port))
- 
-#maintains at most N active connections; To Do: Fix
-N = 10
+
 server.listen()
 
-#maintains a list of potential clients
+# maintains a list of potential clients
 list_of_clients = []
 
 
-#client username dictionary, with login status: 0 if logged off, corresponding address if logged in
+# client username dictionary, with login status: 0 if logged off, corresponding address if logged in
 client_dictionary = {}
 
 
-#lock for dictionary
+# lock for dictionary
 dict_lock = Lock()
 
 # message queues per username
 message_queue = {}
- 
 
 
 def clientthread(conn, addr):
@@ -54,7 +52,7 @@ def clientthread(conn, addr):
     client_state = True
     logged_in = False
     username = None
-    while client_state: 
+    while client_state:
 
         # maintain a state variable as logged in or logged off
         # while logged off, logged_in = False
@@ -62,7 +60,6 @@ def clientthread(conn, addr):
         # sends a message to the client whose user object is conn
         message = "Welcome to Messenger! Please login or create an account:"
         conn.sendall(message.encode())
-
 
         # client can only create an account or login while client state is False
         # To Do: big endian byte interpretation
@@ -73,9 +70,10 @@ def clientthread(conn, addr):
                 # wire protocol demands initial byte is either 0 (create) or 1 (login) here
                 # tag = int.from_bytes(message[0], "big")
                 tag = message[0]
-                
+
                 # account creation
                 if tag == 0:
+                    print('create')
                     username = message[1:]
                     username = username.decode()
                     # If the username is in existence, server asks to retry.
@@ -93,11 +91,8 @@ def clientthread(conn, addr):
                         conn.sendall(message.encode())
                         logged_in = True
 
-                    
                     dict_lock.release()
 
-
-                
                 # login
                 if tag == 1:
                     username = message[1:]
@@ -120,31 +115,31 @@ def clientthread(conn, addr):
                             conn.sendall(message.encode())
                             logged_in = True
                     print(client_dictionary)
-                    dict_lock.release() 
+                    dict_lock.release()
             except:
                 continue
 
-    
         # now suppose that the client is logged in
         # allowable actions are: list accounts, send message, log off, delete account, dump queue
-        
+
         while logged_in == True:
             try:
-                message = conn.recv(2048)
+                signal = conn.recv(2048)
+                message = signal.decode()
 
                 if message:
                     tag = message[0]
                     # Logout
                     if tag == 2:
-                        #Acquire dict lock, change logged in state to false and remove address info in client dictionary 
+                        # Acquire dict lock, change logged in state to false and remove address info in client dictionary
                         logout(username)
                         message = username + " successfully logged out."
                         conn.sendall(message.encode())
                         logged_in = False
-                
+
                     # Delete Account
-                    if tag == 3: ## start of delete account
-                        #Acquire dict lock, remove username from client dictionary and message_queue
+                    if tag == 3:  # start of delete account
+                        # Acquire dict lock, remove username from client dictionary and message_queue
                         dict_lock.acquire(timeout=10)
                         client_dictionary.pop(username)
                         message_queue.pop(username)
@@ -152,9 +147,9 @@ def clientthread(conn, addr):
                         dict_lock.release()
                         message = "Account " + username + " successfully deleted."
                         conn.sendall(message.encode())
-                    
-                    #Send Message 
-                    if tag == 4: 
+
+                    # Send Message
+                    if tag == 4:
                         # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
                         length_of_recep = message[1]
                         recep_username = message[2:2+length_of_recep]
@@ -169,7 +164,8 @@ def clientthread(conn, addr):
                             text_message = message[2+length_of_recep:].decode()
                             # Checks if recipient logged out
                             if client_dictionary[recep_username] == 0:
-                                message_queue[recep_username].append([username, text_message])
+                                message_queue[recep_username].append(
+                                    [username, text_message])
                             # If logged in, look up connection in dictionary
                             else:
                                 recep_conn = client_dictionary[username]
@@ -186,17 +182,29 @@ def clientthread(conn, addr):
                         # To Do: Ask about blocking and ask about timeouts? What happened if send fails?
                         dict_lock.release()
 
-                    #Dump Message queue
+                    # Dump Message queue
                     if tag == 5:
                         # Message Queue preconfigured so it stores packet of username, message
                         for undelivered in message_queue[username]:
                             sender = undelivered[0]
                             undel_message = undelivered[1]
                             # To Do: username will have /n at the end
-                            message = "<" + sender+ ">: " + undel_message
+                            message = "<" + sender + ">: " + undel_message
                             conn.sendall(message.encode())
 
                     # To DO: List Accounts
+                    if tag == 6:
+                        print(message)
+                        dict_lock.acquire(timeout=10)
+                        users = match(message)
+                        dict_lock.release()
+                        if users == '':
+                            res = 'No users found'
+                        else:
+                            res = "Users matching " + message + '\n'
+                            res += users
+                        print(res)
+                        conn.sendall(res.encode())
 
                 else:
                     """message may have no content if the connection
@@ -204,13 +212,9 @@ def clientthread(conn, addr):
                     # To Do: Log out if connection is broken; how do we check if connection breaks?
                     remove(conn, username)
                     # To Do: How to check if connection still present
-    
+
             except:
                 continue
-
-
-
- 
 
 
 def logout(username):
@@ -226,62 +230,68 @@ def remove(connection, username):
     if connection in list_of_clients:
         print(f"{connection} has left")
         list_of_clients.remove(connection)
-    
-    
 
-# def send_message(message): 
-#     sender = [i for i in client_dictionary if client_dictionary[i]==addr]
-#     receiver = message[2:]
-#     proc_message = "<" + sender + "> " + message[3:]
-#     dict_lock.acquire(timeout=10)
-#     if client_dictionary[receiver] != 0: 
-#         rec_conn = client_dictionary.find(receiver[1])
-#         rec_conn.sendall(proc_message.encode())
-#         conn.send("delivered".encode())
-#     else: 
-#         message_queue[receiver] += message
-    
-
-        
+# not sure how to implement this efficiently/without locking the entire dictionary, maybe keep list of all users that have logged in separately
 
 
- 
-# """Using the below function, we broadcast the message to all
-# clients who's object is not the same as the one sending
-# the message """
-# def broadcast(message, connection):
-#     for clients in list_of_clients:
-#         if clients!=connection:
-#             try:
-#                 clients.send(message.encode())
-#             except:
-#                 clients.close()
- 
-#                 # if the link is broken, we remove the client
-#                 remove(clients)
- 
-# """The following function simply removes the object
-# from the list that was created at the beginning of
-# the program"""
+def match(query):
+    message = ''
+    query.replace('*', ".*")
+    for key in client_dictionary.keys():
+        match = re.search(query, key)
+        if match is not None:
+            message += match + " "
+        if len(message) > 30:
+            print(message)
+            return message
+    print(message)
+    return message
 
+
+    # def send_message(message):
+    #     sender = [i for i in client_dictionary if client_dictionary[i]==addr]
+    #     receiver = message[2:]
+    #     proc_message = "<" + sender + "> " + message[3:]
+    #     dict_lock.acquire(timeout=10)
+    #     if client_dictionary[receiver] != 0:
+    #         rec_conn = client_dictionary.find(receiver[1])
+    #         rec_conn.sendall(proc_message.encode())
+    #         conn.send("delivered".encode())
+    #     else:
+    #         message_queue[receiver] += message
+    # """Using the below function, we broadcast the message to all
+    # clients who's object is not the same as the one sending
+    # the message """
+    # def broadcast(message, connection):
+    #     for clients in list_of_clients:
+    #         if clients!=connection:
+    #             try:
+    #                 clients.send(message.encode())
+    #             except:
+    #                 clients.close()
+    #                 # if the link is broken, we remove the client
+    #                 remove(clients)
+    # """The following function simply removes the object
+    # from the list that was created at the beginning of
+    # the program"""
 while True:
- 
+
     """Accepts a connection request and stores two parameters,
     conn which is a socket object for that user, and addr
     which contains the IP address of the client that just
     connected"""
     conn, addr = server.accept()
- 
+
     """Maintains a list of clients for ease of broadcasting
     a message to all available people in the chatroom"""
     list_of_clients.append(conn)
- 
+
     # prints the address of the user that just connected
     print(addr[0] + " connected")
- 
+
     # creates and individual thread for every user
     # that connects
-    start_new_thread(clientthread,(conn,addr))    
- 
+    start_new_thread(clientthread, (conn, addr))
+
 conn.close()
 server.close()

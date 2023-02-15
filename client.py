@@ -15,13 +15,12 @@ Port = int(sys.argv[2])
 server.connect((IP_address, Port))
 
 
-
 # Keywords that client side parses and tags to send to the server
-MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout', 'Delete Account', 'Send']
+MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout',
+                'Delete Account', 'Send', 'List Accounts']
 
 
-
-#To Do: limits on message and username lengths
+# To Do: limits on message and username lengths
 
 # always returns encoded message
 def process(message):
@@ -36,10 +35,12 @@ def process(message):
             if len(name) <= MAX_RECIPIENT_LENGTH:
                 name_max = True
             else:
-                print("All usernames must be at most " + str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
+                print("All usernames must be at most " +
+                      str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
         message = name
         message = message.encode()
         tag = (0).to_bytes(1, "big")
+        print(message)
     elif message.find('Login') == 0:
         message = sys.stdin.readline()
         message = message.encode()
@@ -62,7 +63,8 @@ def process(message):
             if len(recipient) <= MAX_RECIPIENT_LENGTH:
                 rec_max = True
             else:
-                print("All usernames are at most " + str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
+                print("All usernames are at most " +
+                      str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
         len_r = len(recipient)
         recep_tag = (len_r).to_bytes(1, "big")
         recipient = recipient.encode()
@@ -75,18 +77,21 @@ def process(message):
             if len(message) <= MAX_MESSAGE_LENGTH:
                 mes_len = True
             else:
-                print("Message must be at most " + str(MAX_MESSAGE_LENGTH) + " characters. Please try again.")
+                print("Message must be at most " +
+                      str(MAX_MESSAGE_LENGTH) + " characters. Please try again.")
         message = message.encode()
         type_tag = (4).to_bytes(1, "big")
         # Wire protocol tags with type, then length of receiving username for metadata parsing, and the receiving username
         tag = type_tag + recep_tag + recipient
+    # TODO this is clunky, we should dump messages when user logs in
     elif message.find("Open Undelivered Messages") == 0:
         message = ""
         message = message.encode()
         tag = (5).to_bytes(1, "big")
     elif message.find("List Accounts") == 0:
-        # To Do
-        pass
+        message = sys.stdin.readline()
+        message = message.encode()
+        tag = (6).to_bytes(1, "big")
     else:
         print('Input not recognized. Please try again.')
         return
@@ -121,13 +126,12 @@ while True:
             bmsg = process(message)
             # if bmsg and bmsg[0] != 4: ??? To Do
             if bmsg:
-                try: 
+                try:
                     server.send(bmsg)
                     sys.stdout.flush()
-                except: 
+                except:
                     print('message could not send')
 server.close()
-
 
 
 # To Do: If we log in, and try to log in again, do we have to have a client side error, or can we just let that be a null operation (second option probably good too)
