@@ -24,7 +24,7 @@ MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout',
 
 # always returns encoded message
 def process(message):
-    message.rstrip()
+    message = message.rstrip()
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
         name = ""
