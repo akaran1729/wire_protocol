@@ -14,14 +14,19 @@ class BidirectionalStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Server2Client = channel.unary_unary(
-                '/bidirectional.Bidirectional/Server2Client',
+        self.ServerSend = channel.unary_unary(
+                '/bidirectional.Bidirectional/ServerSend',
                 request_serializer=wire__pb2.Text.SerializeToString,
+                response_deserializer=wire__pb2.Res.FromString,
+                )
+        self.ChangeAccountState = channel.unary_unary(
+                '/bidirectional.Bidirectional/ChangeAccountState',
+                request_serializer=wire__pb2.Account.SerializeToString,
                 response_deserializer=wire__pb2.Res.FromString,
                 )
         self.ClientStream = channel.unary_stream(
                 '/bidirectional.Bidirectional/ClientStream',
-                request_serializer=wire__pb2.Empty.SerializeToString,
+                request_serializer=wire__pb2.Account.SerializeToString,
                 response_deserializer=wire__pb2.Text.FromString,
                 )
 
@@ -29,7 +34,13 @@ class BidirectionalStub(object):
 class BidirectionalServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Server2Client(self, request, context):
+    def ServerSend(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ChangeAccountState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -44,14 +55,19 @@ class BidirectionalServicer(object):
 
 def add_BidirectionalServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Server2Client': grpc.unary_unary_rpc_method_handler(
-                    servicer.Server2Client,
+            'ServerSend': grpc.unary_unary_rpc_method_handler(
+                    servicer.ServerSend,
                     request_deserializer=wire__pb2.Text.FromString,
+                    response_serializer=wire__pb2.Res.SerializeToString,
+            ),
+            'ChangeAccountState': grpc.unary_unary_rpc_method_handler(
+                    servicer.ChangeAccountState,
+                    request_deserializer=wire__pb2.Account.FromString,
                     response_serializer=wire__pb2.Res.SerializeToString,
             ),
             'ClientStream': grpc.unary_stream_rpc_method_handler(
                     servicer.ClientStream,
-                    request_deserializer=wire__pb2.Empty.FromString,
+                    request_deserializer=wire__pb2.Account.FromString,
                     response_serializer=wire__pb2.Text.SerializeToString,
             ),
     }
@@ -65,7 +81,7 @@ class Bidirectional(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Server2Client(request,
+    def ServerSend(request,
             target,
             options=(),
             channel_credentials=None,
@@ -75,8 +91,25 @@ class Bidirectional(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/Server2Client',
+        return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/ServerSend',
             wire__pb2.Text.SerializeToString,
+            wire__pb2.Res.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ChangeAccountState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/ChangeAccountState',
+            wire__pb2.Account.SerializeToString,
             wire__pb2.Res.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
@@ -93,7 +126,7 @@ class Bidirectional(object):
             timeout=None,
             metadata=None):
         return grpc.experimental.unary_stream(request, target, '/bidirectional.Bidirectional/ClientStream',
-            wire__pb2.Empty.SerializeToString,
+            wire__pb2.Account.SerializeToString,
             wire__pb2.Text.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)

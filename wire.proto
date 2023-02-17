@@ -6,7 +6,7 @@ package bidirectional;
 service Bidirectional {
    rpc ServerSend(Text) returns (Res) {}
    rpc ChangeAccountState(Account) returns (Res) {}
-   rpc ClientStream(Empty) returns (stream Text) {}
+   rpc ClientStream(Account) returns (stream Text) {}
 }
 
 message Text {
@@ -17,11 +17,12 @@ message Text {
 
 message Account { 
   int32 type = 1; 
-  string username = 1; 
+  string username = 2; 
+  string connection = 3;  
 }
 
 message Res { 
   int32 status = 1;
 }
 
-message Empty {}
+message Void {}

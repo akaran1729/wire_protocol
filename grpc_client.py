@@ -16,29 +16,60 @@ if len(sys.argv) != 3:
 IP_address = str(sys.argv[1])
 Port = str(sys.argv[2])
 channel = grpc.insecure_channel(IP_address + ':' + Port)
+print(channel)
 conn = rpc.BidirectionalStub(channel)
+print(conn)
 # create new listening thread for when new message streams come in
+# could be an issue here with concurrency, check this and may have to switch to class objects
+
+username = ''
+listen_thread = None
 
 
 def listen():
-    for text in conn.ClientStream(chat.Empty()):
+    this_acc = chat.Account(type=None, username=username, connection=conn)
+    for text in conn.ClientStream(this_acc):
         print(text.sender, text.message)
 
 
 # TO DO grpc parser
 def process(message):
+    global username
+    global listen_thread
     message = message.rstrip()
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
-        pass
+        pmessage = input('username:')
+        print('idiot')
+        acct = chat.Account(type=3, username=pmessage, connection=str(channel))
+        print(acct)
+        res = conn.ChangeAccountState(acct)
+        if res:
+            username = pmessage
+            listen_thread = threading.Thread(
+                target=listen, daemon=True).start()
     elif message.find('Login') == 0:
-        pass
+        pmessage = input("username:")
+        acct = chat.Account(type=0, username=pmessage, connection=channel)
+        res = conn.ChangeAccountState(acct)
+        if res:
+            username = pmessage
+            listen_thread = threading.Thread(
+                target=listen, daemon=True).start()
     elif message.find('Logout') == 0:
-        pass
+        acct = chat.Account(type=1, username=pmessage, connection=channel)
+        res = conn.ChangeAccountState(acct)
+        if res:
+            username = ''
+            listen_thread.join()
     elif message.find('Delete Account') == 0:
-        pass
+        acct = chat.Account(type=2, username=pmessage, connection=channel)
+        res = conn.ChangeAccountState(acct)
     elif message.find("Send") == 0:
-        pass
+        receiver = input('to: ')
+        text = input('begin message: ')
+        conn.ServerSend(chat.Text(sender=username,
+                        receiver=receiver, message=text))
     # TO DO this is clunky, we should dump messages when user logs in
     elif message.find("Open Undelivered Messages") == 0:
         pass
@@ -47,12 +78,7 @@ def process(message):
     else:
         print('Input not recognized. Please try again.')
         return
-
-    bmsg = message
-    return bmsg
-
-
-threading.Thread(target=listen, daemon=True).start()
+    return res
 
 
 # Keywords that client side parses and tags to send to the server
@@ -62,15 +88,15 @@ MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout',
 print("Welcome to Messenger! Login or create an account to get started!")
 while True:
     message = input()
-    pmessage = process(message)
     try:
-        res = conn.ServerSend(pmessage)
+        res = process(message)
+        print(res)
         if res:
             print('delivered')
         else:
             print('server error')
-    except:
-        print('unknown error')
+    except Exception as e:
+        print(e)
 
 
 # To Do: limits on message and username lengths
