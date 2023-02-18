@@ -32,6 +32,7 @@ def process(message):
         # Ensures created accounts are no more than the max alotted length
         while name_max == False:
             name = sys.stdin.readline()
+            name = name.rstrip()
             if len(name) <= MAX_RECIPIENT_LENGTH:
                 name_max = True
             else:
@@ -43,6 +44,7 @@ def process(message):
         print(message)
     elif message.find('Login') == 0:
         message = sys.stdin.readline()
+        message = message.rstrip()
         message = message.encode()
         tag = (1).to_bytes(1, "big")
     elif message.find('Logout') == 0:
@@ -60,6 +62,7 @@ def process(message):
         # Ensures recipient is in the length limit, for wire protocol tagging
         while rec_max == False:
             recipient = sys.stdin.readline()
+            recipient = recipient.rstrip()
             if len(recipient) <= MAX_RECIPIENT_LENGTH:
                 rec_max = True
             else:
@@ -74,6 +77,7 @@ def process(message):
         # Ensures message is in the length limit
         while mes_len == False:
             message = sys.stdin.readline()
+            message = message.rstrip()
             if len(message) <= MAX_MESSAGE_LENGTH:
                 mes_len = True
             else:
@@ -97,6 +101,7 @@ def process(message):
         return
 
     bmsg = tag + message
+    print(bmsg)
     return bmsg
 
 

@@ -123,12 +123,15 @@ def clientthread(conn, addr):
         # allowable actions are: list accounts, send message, log off, delete account, dump queue
 
         while logged_in == True:
+            print("LOGGED IN")
             try:
-                signal = conn.recv(2048)
-                message = signal.decode()
-
+                message = conn.recv(2048)
+                print(message)
+                print("SUCCESS")
                 if message:
                     tag = message[0]
+                    print(tag)
+                    
                     # Logout
                     if tag == 2:
                         # Acquire dict lock, change logged in state to false and remove address info in client dictionary
@@ -151,8 +154,10 @@ def clientthread(conn, addr):
                     # Send Message
                     if tag == 4:
                         # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
-                        length_of_recep = message[1]
-                        recep_username = message[2:2+length_of_recep]
+                        length_of_recep = message[1] #convert to int
+                        print(length_of_recep)
+                        recep_username = message[2:2+length_of_recep].decode()
+                        print("SUCCESS")
 
                         dict_lock.acquire(timeout=10)
                         # To Do: Should we make this more granular with locking? Like variables for recep in client_dictionary
@@ -170,14 +175,18 @@ def clientthread(conn, addr):
                             else:
                                 recep_conn = client_dictionary[username]
                                 new_message = "<"+username+">: " + text_message
-                                r = recep_conn.sendall(new_message.encode())
+                                try:
+                                    recep_conn.sendall(new_message.encode())
+                                    confirmation_message = "\nMessage successfully sent."
+                                    conn.sendall(confirmation_message.encode())
                                 # If sending fails, let the sender know; otherwise, send confirmation to sender
-                                if r < 0:
+                                except:
                                     error_message = "Sorry, message could not be sent. Please try again."
                                     conn.sendall(error_message.encode())
-                                else:
-                                    confirmation_message = "Message successfully sent."
-                                    conn.sendall(confirmation_message.encode())
+
+                            
+                                
+                                    
 
                         # To Do: Ask about blocking and ask about timeouts? What happened if send fails?
                         dict_lock.release()
@@ -211,8 +220,11 @@ def clientthread(conn, addr):
                     is broken, in this case we remove the connection"""
                     # To Do: Log out if connection is broken; how do we check if connection breaks?
                     remove(conn, username)
+                    logged_in = False
+                    client_state = False
                     # To Do: How to check if connection still present
 
+            # except Exception as e:
             except:
                 continue
 
