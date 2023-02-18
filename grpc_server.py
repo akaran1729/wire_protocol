@@ -20,8 +20,7 @@ account_lock = Lock()
 class ChatServer(rpc.BidirectionalServicer):
 
     def __init__(self):
-        # List with all the chat history
-        self.chats = []
+        self.obj = []
 
     # The stream which will be used to send new messages to clients
     def ClientStream(self, request, context):
@@ -30,15 +29,15 @@ class ChatServer(rpc.BidirectionalServicer):
         Every client opens this connection and waits for server to send new messages
         Every stream is unique since we instantiate a class object for each connection
         """
-        lastindex = 0
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
-            if msg_dict[request.username] != 0:
-                while len(msg_dict[request.username]) > lastindex:
-                    text = self.chats[lastindex]
-                    lastindex += 1
-                    return text
+            if account_dict[request.username] != 0:
+                msg_lock.acquire()
+                while len(msg_dict[request.username]) > 0:
+                    text = msg_dict[request.username].pop(0)
+                    yield text
+                msg_lock.release()
 
     def ServerSend(self, request: chat.Text, context):
         """
@@ -53,8 +52,13 @@ class ChatServer(rpc.BidirectionalServicer):
             # this is only for the server console
             print("[{}] {}".format(request.sender, request.message))
             # Add it to the chat history
-            msg_dict[chat.receiver].append(request)
-        except:
+            if request.receiver in msg_dict.keys():
+                msg_dict[request.receiver].append(request)
+            else:
+                res.status = 2
+                print(request.receiver + " not found")
+        except Exception as e:
+            print(e)
             res.status = 1
         msg_lock.release()
         return res

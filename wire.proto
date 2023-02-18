@@ -6,7 +6,7 @@ package bidirectional;
 service Bidirectional {
    rpc ServerSend(Text) returns (Res) {}
    rpc ChangeAccountState(Account) returns (Res) {}
-   rpc ClientStream(Account) returns (Text) {}
+   rpc ClientStream(Account) returns (stream Text) {}
    rpc ListAccounts(Query) returns (List) {}
 }
 
@@ -36,3 +36,6 @@ message Res {
 }
 
 message Void {}
+
+// use this to rebuild stubs
+// python -m grpc_tools.protoc --proto_path=.  ./wire.proto --python_out=. --grpc_python_out=.

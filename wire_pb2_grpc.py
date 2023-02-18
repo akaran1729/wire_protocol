@@ -24,7 +24,7 @@ class BidirectionalStub(object):
                 request_serializer=wire__pb2.Account.SerializeToString,
                 response_deserializer=wire__pb2.Res.FromString,
                 )
-        self.ClientStream = channel.unary_unary(
+        self.ClientStream = channel.unary_stream(
                 '/bidirectional.Bidirectional/ClientStream',
                 request_serializer=wire__pb2.Account.SerializeToString,
                 response_deserializer=wire__pb2.Text.FromString,
@@ -76,7 +76,7 @@ def add_BidirectionalServicer_to_server(servicer, server):
                     request_deserializer=wire__pb2.Account.FromString,
                     response_serializer=wire__pb2.Res.SerializeToString,
             ),
-            'ClientStream': grpc.unary_unary_rpc_method_handler(
+            'ClientStream': grpc.unary_stream_rpc_method_handler(
                     servicer.ClientStream,
                     request_deserializer=wire__pb2.Account.FromString,
                     response_serializer=wire__pb2.Text.SerializeToString,
@@ -141,7 +141,7 @@ class Bidirectional(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/ClientStream',
+        return grpc.experimental.unary_stream(request, target, '/bidirectional.Bidirectional/ClientStream',
             wire__pb2.Account.SerializeToString,
             wire__pb2.Text.FromString,
             options, channel_credentials,

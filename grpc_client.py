@@ -72,8 +72,8 @@ def process(message):
     elif message.find("Send") == 0:
         receiver = input('to: ')
         text = input('begin message: ')
-        conn.ServerSend(chat.Text(sender=username,
-                        receiver=receiver, message=text))
+        res = conn.ServerSend(chat.Text(sender=username,
+                                        receiver=receiver, message=text))
     # TO DO this is clunky, we should dump messages when user logs in
     elif message.find("Open Undelivered Messages") == 0:
         pass
