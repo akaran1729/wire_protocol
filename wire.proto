@@ -7,6 +7,7 @@ service Bidirectional {
    rpc ServerSend(Text) returns (Res) {}
    rpc ChangeAccountState(Account) returns (Res) {}
    rpc ClientStream(Account) returns (Text) {}
+   rpc ListAccounts(Query) returns (List) {}
 }
 
 message Text {
@@ -19,6 +20,15 @@ message Account {
   int32 type = 1; 
   string username = 2; 
   string connection = 3;  
+}
+
+message Query { 
+  string match = 1;
+  int32 number = 2; 
+}
+
+message List { 
+  string list = 1; 
 }
 
 message Res { 

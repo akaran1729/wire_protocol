@@ -78,7 +78,10 @@ def process(message):
     elif message.find("Open Undelivered Messages") == 0:
         pass
     elif message.find("List Accounts") == 0:
-        pass
+        query = input('search users: ')
+        number = int(input('number of matches: '))
+        res = conn.ListAccounts(chat.Query(match=query, number=number))
+        print(res.list)
     else:
         print('Input not recognized. Please try again.')
         return

@@ -9,6 +9,7 @@ import wire_pb2_grpc as rpc
 
 from _thread import *
 from threading import Lock
+import re
 
 account_dict = {}
 msg_dict = {}
@@ -33,10 +34,11 @@ class ChatServer(rpc.BidirectionalServicer):
         # For every client a infinite loop starts (in gRPC's own managed thread)
         while True:
             # Check if there are any new messages
-            while len(msg_dict[request.username]) > lastindex:
-                text = self.chats[lastindex]
-                lastindex += 1
-                return text
+            if msg_dict[request.username] != 0:
+                while len(msg_dict[request.username]) > lastindex:
+                    text = self.chats[lastindex]
+                    lastindex += 1
+                    return text
 
     def ServerSend(self, request: chat.Text, context):
         """
@@ -86,6 +88,21 @@ class ChatServer(rpc.BidirectionalServicer):
         account_lock.release()
         print(account_dict)
         return res
+
+    def ListAccounts(self, request, context):
+        query = request.match
+        query.replace('*', ".*")
+        res = ''
+        counter = 0
+        account_lock.acquire(timeout=10)
+        for key in account_dict.keys():
+            match = re.search(query, key)
+            if match is not None:
+                res += key + " "
+                counter += 1
+            if counter >= request.number:
+                break
+        return chat.List(list=res)
 
 
 if __name__ == '__main__':

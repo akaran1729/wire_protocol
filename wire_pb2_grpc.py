@@ -29,6 +29,11 @@ class BidirectionalStub(object):
                 request_serializer=wire__pb2.Account.SerializeToString,
                 response_deserializer=wire__pb2.Text.FromString,
                 )
+        self.ListAccounts = channel.unary_unary(
+                '/bidirectional.Bidirectional/ListAccounts',
+                request_serializer=wire__pb2.Query.SerializeToString,
+                response_deserializer=wire__pb2.List.FromString,
+                )
 
 
 class BidirectionalServicer(object):
@@ -52,6 +57,12 @@ class BidirectionalServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListAccounts(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_BidirectionalServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -69,6 +80,11 @@ def add_BidirectionalServicer_to_server(servicer, server):
                     servicer.ClientStream,
                     request_deserializer=wire__pb2.Account.FromString,
                     response_serializer=wire__pb2.Text.SerializeToString,
+            ),
+            'ListAccounts': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListAccounts,
+                    request_deserializer=wire__pb2.Query.FromString,
+                    response_serializer=wire__pb2.List.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -128,5 +144,22 @@ class Bidirectional(object):
         return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/ClientStream',
             wire__pb2.Account.SerializeToString,
             wire__pb2.Text.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ListAccounts(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/bidirectional.Bidirectional/ListAccounts',
+            wire__pb2.Query.SerializeToString,
+            wire__pb2.List.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
