@@ -240,10 +240,7 @@ def match(query):
     for key in client_dictionary.keys():
         match = re.search(query, key)
         if match is not None:
-            message += match + " "
-        if len(message) > 30:
-            print(message)
-            return message
+            message += match.group() + " "
     print(message)
     return message
 
