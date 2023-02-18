@@ -23,7 +23,7 @@ class ChatServer(rpc.BidirectionalServicer):
         self.chats = []
 
     # The stream which will be used to send new messages to clients
-    def ClientStream(self, request: chat.Account, context):
+    def ClientStream(self, request, context):
         """
         This is a response-stream type call. This means the server can keep sending messages
         Every client opens this connection and waits for server to send new messages
@@ -36,7 +36,7 @@ class ChatServer(rpc.BidirectionalServicer):
             while len(msg_dict[request.username]) > lastindex:
                 text = self.chats[lastindex]
                 lastindex += 1
-                yield text
+                return text
 
     def ServerSend(self, request: chat.Text, context):
         """
@@ -77,17 +77,19 @@ class ChatServer(rpc.BidirectionalServicer):
             if request.username in account_dict.keys():
                 account_dict.pop(request.username)
                 res.status = 0
-        # create account 
-        elif request.type == 3: 
+        # create account
+        elif request.type == 3:
             if request.username not in account_dict.keys():
                 account_dict[request.username] = request.connection
+                msg_dict[request.username] = []
                 res.status = 0
         account_lock.release()
+        print(account_dict)
         return res
 
 
 if __name__ == '__main__':
-    port = port = int(sys.argv[2])  # a random port for the server to run on
+    port = sys.argv[2]  # a random port for the server to run on
     IP_addr = str(sys.argv[1])
     # the workers is like the amount of threads that can be opened at the same time, when there are 10 clients connected
     # then no more clients able to connect to the server.

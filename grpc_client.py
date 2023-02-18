@@ -14,7 +14,7 @@ if len(sys.argv) != 3:
     print("Correct usage: script, IP address, port number")
     exit()
 IP_address = str(sys.argv[1])
-Port = str(sys.argv[2])
+Port = sys.argv[2]
 channel = grpc.insecure_channel(IP_address + ':' + Port)
 print(channel)
 conn = rpc.BidirectionalStub(channel)
@@ -27,9 +27,13 @@ listen_thread = None
 
 
 def listen():
-    this_acc = chat.Account(type=None, username=username, connection=conn)
-    for text in conn.ClientStream(this_acc):
-        print(text.sender, text.message)
+    this_acc = chat.Account(type=0, username=username,
+                            connection=str(channel))
+    try:
+        for text in conn.ClientStream(this_acc):
+            print(text.sender, text.message)
+    except Exception as e:
+        print(e)
 
 
 # TO DO grpc parser
@@ -40,30 +44,30 @@ def process(message):
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
         pmessage = input('username:')
-        print('idiot')
         acct = chat.Account(type=3, username=pmessage, connection=str(channel))
-        print(acct)
         res = conn.ChangeAccountState(acct)
         if res:
             username = pmessage
             listen_thread = threading.Thread(
-                target=listen, daemon=True).start()
+                target=listen, daemon=True)
+            listen_thread.start()
     elif message.find('Login') == 0:
         pmessage = input("username:")
-        acct = chat.Account(type=0, username=pmessage, connection=channel)
+        acct = chat.Account(type=0, username=pmessage, connection=str(channel))
         res = conn.ChangeAccountState(acct)
         if res:
             username = pmessage
             listen_thread = threading.Thread(
-                target=listen, daemon=True).start()
+                target=listen, daemon=True)
+            listen_thread.start()
     elif message.find('Logout') == 0:
-        acct = chat.Account(type=1, username=pmessage, connection=channel)
+        acct = chat.Account(type=1, username=username, connection=str(channel))
         res = conn.ChangeAccountState(acct)
         if res:
             username = ''
-            listen_thread.join()
+            # listen_thread.join()
     elif message.find('Delete Account') == 0:
-        acct = chat.Account(type=2, username=pmessage, connection=channel)
+        acct = chat.Account(type=2, username=pmessage, connection=str(channel))
         res = conn.ChangeAccountState(acct)
     elif message.find("Send") == 0:
         receiver = input('to: ')
@@ -90,7 +94,7 @@ while True:
     message = input()
     try:
         res = process(message)
-        print(res)
+        print(res.status)
         if res:
             print('delivered')
         else:
