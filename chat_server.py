@@ -136,7 +136,7 @@ def clientthread(conn, addr):
                     if tag == 2:
                         # Acquire dict lock, change logged in state to false and remove address info in client dictionary
                         logout(username)
-                        message = username + " successfully logged out."
+                        message = username + " successfully logged out. \n"
                         conn.sendall(message.encode())
                         logged_in = False
 
@@ -148,7 +148,7 @@ def clientthread(conn, addr):
                         message_queue.pop(username)
                         logged_in = False
                         dict_lock.release()
-                        message = "Account " + username + " successfully deleted."
+                        message = "Account " + username + " successfully deleted. \n"
                         conn.sendall(message.encode())
 
                     # Send Message
@@ -173,7 +173,7 @@ def clientthread(conn, addr):
                                     [username, text_message])
                             # If logged in, look up connection in dictionary
                             else:
-                                recep_conn = client_dictionary[username]
+                                recep_conn = client_dictionary[recep_username]
                                 new_message = "<"+username+">: " + text_message
                                 try:
                                     recep_conn.sendall(new_message.encode())
@@ -203,15 +203,18 @@ def clientthread(conn, addr):
 
                     # To DO: List Accounts
                     if tag == 6:
-                        print(message)
+                        print("A")
+                        query = message[1:].decode()
                         dict_lock.acquire(timeout=10)
-                        users = match(message)
+                        users = match(query)
+                        print("B")
                         dict_lock.release()
                         if users == '':
                             res = 'No users found'
                         else:
-                            res = "Users matching " + message + '\n'
+                            res = "Users matching " + query + '\n'
                             res += users
+                        print("C")
                         print(res)
                         conn.sendall(res.encode())
 
@@ -225,7 +228,9 @@ def clientthread(conn, addr):
                     # To Do: How to check if connection still present
 
             # except Exception as e:
-            except:
+            except Exception as e:
+                print(e)
+                return
                 continue
 
 
@@ -248,14 +253,11 @@ def remove(connection, username):
 
 def match(query):
     message = ''
-    query.replace('*', ".*")
+    query = query.replace('*', ".*")
     for key in client_dictionary.keys():
         match = re.search(query, key)
         if match is not None:
-            message += match + " "
-        if len(message) > 30:
-            print(message)
-            return message
+            message += key + " "
     print(message)
     return message
 

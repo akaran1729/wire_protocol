@@ -94,6 +94,7 @@ def process(message):
         tag = (5).to_bytes(1, "big")
     elif message.find("List Accounts") == 0:
         message = sys.stdin.readline()
+        message = message.rstrip()
         message = message.encode()
         tag = (6).to_bytes(1, "big")
     else:
