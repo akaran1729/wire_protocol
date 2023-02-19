@@ -113,14 +113,21 @@ class ChatServer(rpc.BidirectionalServicer):
         res = ''
         counter = 0
         account_lock.acquire(timeout=10)
-        for key in account_dict.keys():
-            match = re.search(query, key)
-            if match is not None:
-                res += key + " "
-                counter += 1
-            if counter >= request.number:
-                break
-        print(res)
+        try:
+            for key in account_dict.keys():
+                match = re.search(query, key)
+                if match is not None:
+                    res += key + " "
+                    counter += 1
+                if counter >= request.number:
+                    break
+            print(res)
+        except Exception as e:
+            print(e)
+            res = 'Regex Error'
+            account_lock.release()
+            return chat.List(list=res)
+        account_lock.release()
         return chat.List(list=res)
 
 

@@ -42,43 +42,67 @@ def process(message):
     message = message.rstrip()
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
-        pmessage = input('username:')
-        acct = chat.Account(type=3, username=pmessage, connection=str(channel))
-        res = conn.ChangeAccountState(acct)
-        if res:
-            username = pmessage
-            listen_thread = threading.Thread(
-                target=listen, daemon=True)
-            listen_thread.start()
+        if username == '':
+            pmessage = input('username:')
+            acct = chat.Account(type=3, username=pmessage,
+                                connection=str(channel))
+            res = conn.ChangeAccountState(acct)
+            if res:
+                username = pmessage
+                listen_thread = threading.Thread(
+                    target=listen, daemon=True)
+                listen_thread.start()
+        else:
+            print(f'Currently signed in as {username}, please log out first')
+            res = None
     elif message.find('Login') == 0:
-        pmessage = input("username:")
-        acct = chat.Account(type=0, username=pmessage, connection=str(channel))
-        res = conn.ChangeAccountState(acct)
-        if res:
-            username = pmessage
-            listen_thread = threading.Thread(
-                target=listen, daemon=True)
-            listen_thread.start()
+        if username == '':
+            pmessage = input("username:")
+            acct = chat.Account(type=0, username=pmessage,
+                                connection=str(channel))
+            res = conn.ChangeAccountState(acct)
+            if res:
+                username = pmessage
+                listen_thread = threading.Thread(
+                    target=listen, daemon=True)
+                listen_thread.start()
+        else:
+            print(f'Currently signed in as {username}, please log out first')
+            res = None
     elif message.find('Logout') == 0:
-        acct = chat.Account(type=1, username=username, connection=str(channel))
-        res = conn.ChangeAccountState(acct)
-        if res:
-            username = ''
-            # listen_thread.join()
+        if username != '':
+            acct = chat.Account(type=1, username=username,
+                                connection=str(channel))
+            res = conn.ChangeAccountState(acct)
+            if res:
+                username = ''
+                # listen_thread.join()
+        else:
+            res = None
+            print('Please log in first')
     elif message.find('Delete Account') == 0:
-        acct = chat.Account(type=2, username=username, connection=str(channel))
-        res = conn.ChangeAccountState(acct)
-        username = ''
+        if username != '':
+            acct = chat.Account(type=2, username=username,
+                                connection=str(channel))
+            res = conn.ChangeAccountState(acct)
+            username = ''
+        else:
+            res = None
+            print('Please log in first')
     elif message.find("Send") == 0:
-        receiver = input('to: ')
-        text = input('begin message: ')
-        res = conn.ServerSend(chat.Text(sender=username,
-                                        receiver=receiver, message=text))
+        if username != '':
+            receiver = input('to: ')
+            text = input('begin message: ')
+            res = conn.ServerSend(chat.Text(sender=username,
+                                            receiver=receiver, message=text))
+        else:
+            res = None
+            print('Please log in first')
     elif message.find("List Accounts") == 0:
         query = input('search users: ')
         number = int(input('number of matches: '))
         results = conn.ListAccounts(chat.Query(match=query, number=number))
-        print(results)
+        print(results.list)
         res = chat.Res(status=0)
         if len(results.list) == 0:
             res.status = 1
@@ -104,7 +128,7 @@ while True:
             elif res.status == 1:
                 print('Account(s) not found')
             elif res.status == 2:
-                print('Username taken, try again')
+                print('Username taken, enter prompt to try again')
             else:
                 print('Unknown server error')
     except Exception as e:
