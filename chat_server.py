@@ -123,14 +123,10 @@ def clientthread(conn, addr):
         # allowable actions are: list accounts, send message, log off, delete account, dump queue
 
         while logged_in == True:
-            print("LOGGED IN")
             try:
                 message = conn.recv(2048)
-                print(message)
-                print("SUCCESS")
                 if message:
                     tag = message[0]
-                    print(tag)
                     
                     # Logout
                     if tag == 2:
@@ -155,15 +151,13 @@ def clientthread(conn, addr):
                     if tag == 4:
                         # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
                         length_of_recep = message[1] #convert to int
-                        print(length_of_recep)
                         recep_username = message[2:2+length_of_recep].decode()
-                        print("SUCCESS")
 
                         dict_lock.acquire(timeout=10)
                         # To Do: Should we make this more granular with locking? Like variables for recep in client_dictionary
                         # Checks if recipeint is actually a possible recipient
                         if recep_username not in client_dictionary.keys():
-                            message = "Sorry, message recipient not found. Please try again."
+                            message = "Sorry, message recipient not found. Please try again. \n"
                             conn.sendall(message.encode())
                         else:
                             text_message = message[2+length_of_recep:].decode()
@@ -171,6 +165,8 @@ def clientthread(conn, addr):
                             if client_dictionary[recep_username] == 0:
                                 message_queue[recep_username].append(
                                     [username, text_message])
+                                confirmation_message = "\nMessage successfully sent."
+                                conn.sendall(confirmation_message.encode())
                             # If logged in, look up connection in dictionary
                             else:
                                 recep_conn = client_dictionary[recep_username]
@@ -203,19 +199,15 @@ def clientthread(conn, addr):
 
                     # To DO: List Accounts
                     if tag == 6:
-                        print("A")
                         query = message[1:].decode()
                         dict_lock.acquire(timeout=10)
                         users = match(query)
-                        print("B")
                         dict_lock.release()
                         if users == '':
                             res = 'No users found'
                         else:
                             res = "Users matching " + query + '\n'
                             res += users
-                        print("C")
-                        print(res)
                         conn.sendall(res.encode())
 
                 else:
@@ -228,9 +220,7 @@ def clientthread(conn, addr):
                     # To Do: How to check if connection still present
 
             # except Exception as e:
-            except Exception as e:
-                print(e)
-                return
+            except:
                 continue
 
 
@@ -258,7 +248,7 @@ def match(query):
         match = re.search(query, key)
         if match is not None:
             message += key + " "
-    print(message)
+    # print(message)
     return message
 
 

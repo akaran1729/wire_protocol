@@ -41,7 +41,6 @@ def process(message):
         message = name
         message = message.encode()
         tag = (0).to_bytes(1, "big")
-        print(message)
     elif message.find('Login') == 0:
         message = sys.stdin.readline()
         message = message.rstrip()
@@ -102,7 +101,6 @@ def process(message):
         return
 
     bmsg = tag + message
-    print(bmsg)
     return bmsg
 
 
@@ -130,13 +128,12 @@ while True:
         else:
             message = sys.stdin.readline()
             bmsg = process(message)
-            # if bmsg and bmsg[0] != 4: ??? To Do
             if bmsg:
                 try:
                     server.send(bmsg)
                     sys.stdout.flush()
                 except:
-                    print('message could not send')
+                    print('Message could not send.')
 server.close()
 
 
