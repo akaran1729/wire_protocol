@@ -29,18 +29,40 @@ class ChatServer(rpc.BidirectionalServicer):
         Every client opens this connection and waits for server to send new messages
         Every stream is unique since we instantiate a class object for each connection
         """
+        try:
         # For every client a infinite loop starts (in gRPC's own managed thread)
-        while True:
-            # Check if there are any new messages
+            while context.is_active():
+                # Check if there are any new messages
+                account_lock.acquire(timeout=3)
+                if request.username in account_dict.keys():
+                    if account_dict[request.username] != 0:
+                        msg_lock.acquire()
+                        while len(msg_dict[request.username]) > 0:
+                            text = msg_dict[request.username].pop(0)
+                            yield text
+                        msg_lock.release()
+                account_lock.release()
+
+            # In case of broken connection
+            if context.is_active() == False:
+                print(request.username + " disconnected")
+                account_lock.acquire(timeout=3)
+                if request.username in account_dict.keys():
+                    if account_dict[request.username] != 0:
+                        account_dict[request.username] = 0
+                account_lock.release()
+
+        # Any other interruption will automatically disconnect
+        except Exception as e:
+            print(e)
+            print(request.username + " disconnected")
             account_lock.acquire(timeout=3)
             if request.username in account_dict.keys():
                 if account_dict[request.username] != 0:
-                    msg_lock.acquire()
-                    while len(msg_dict[request.username]) > 0:
-                        text = msg_dict[request.username].pop(0)
-                        yield text
-                    msg_lock.release()
+                    account_dict[request.username] = 0
             account_lock.release()
+            
+        
 
     def ServerSend(self, request: chat.Text, context):
         """
