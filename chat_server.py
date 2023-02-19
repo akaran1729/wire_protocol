@@ -131,7 +131,7 @@ def clientthread(conn, addr):
                 if message:
                     tag = message[0]
                     print(tag)
-                    
+
                     # Logout
                     if tag == 2:
                         # Acquire dict lock, change logged in state to false and remove address info in client dictionary
@@ -154,7 +154,7 @@ def clientthread(conn, addr):
                     # Send Message
                     if tag == 4:
                         # Wire Protocol: tag-length of username (< 256 char by demand) - recepient - message
-                        length_of_recep = message[1] #convert to int
+                        length_of_recep = message[1]  # convert to int
                         print(length_of_recep)
                         recep_username = message[2:2+length_of_recep].decode()
                         print("SUCCESS")
@@ -183,10 +183,6 @@ def clientthread(conn, addr):
                                 except:
                                     error_message = "Sorry, message could not be sent. Please try again."
                                     conn.sendall(error_message.encode())
-
-                            
-                                
-                                    
 
                         # To Do: Ask about blocking and ask about timeouts? What happened if send fails?
                         dict_lock.release()
@@ -248,11 +244,11 @@ def remove(connection, username):
 
 def match(query):
     message = ''
-    query.replace('*', ".*")
+    query = query.replace('*', ".*")
     for key in client_dictionary.keys():
         match = re.search(query, key)
         if match is not None:
-            message += match.group() + " "
+            message += key + " "
     print(message)
     return message
 

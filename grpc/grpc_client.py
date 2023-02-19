@@ -36,7 +36,6 @@ def listen():
         print(e)
 
 
-# TO DO grpc parser
 def process(message):
     global username
     global listen_thread
@@ -67,21 +66,23 @@ def process(message):
             username = ''
             # listen_thread.join()
     elif message.find('Delete Account') == 0:
-        acct = chat.Account(type=2, username=pmessage, connection=str(channel))
+        acct = chat.Account(type=2, username=username, connection=str(channel))
         res = conn.ChangeAccountState(acct)
+        username = ''
     elif message.find("Send") == 0:
         receiver = input('to: ')
         text = input('begin message: ')
         res = conn.ServerSend(chat.Text(sender=username,
                                         receiver=receiver, message=text))
-    # TO DO this is clunky, we should dump messages when user logs in
-    elif message.find("Open Undelivered Messages") == 0:
-        pass
     elif message.find("List Accounts") == 0:
         query = input('search users: ')
         number = int(input('number of matches: '))
-        res = conn.ListAccounts(chat.Query(match=query, number=number))
-        print(res.list)
+        results = conn.ListAccounts(chat.Query(match=query, number=number))
+        print(results)
+        res = chat.Res(status=0)
+        if len(results.list) == 0:
+            res.status = 1
+
     else:
         print('Input not recognized. Please try again.')
         return
@@ -97,11 +98,15 @@ while True:
     message = input()
     try:
         res = process(message)
-        print(res.status)
-        if res:
-            print('delivered')
-        else:
-            print('server error')
+        if res is not None:
+            if res.status == 0:
+                print('success')
+            elif res.status == 1:
+                print('Account(s) not found')
+            elif res.status == 2:
+                print('Username taken, try again')
+            else:
+                print('Unknown server error')
     except Exception as e:
         print(e)
 
