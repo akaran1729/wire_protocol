@@ -47,7 +47,7 @@ def process(message):
             acct = chat.Account(type=3, username=pmessage,
                                 connection=str(channel))
             res = conn.ChangeAccountState(acct)
-            if res:
+            if res.status == 0:
                 username = pmessage
                 listen_thread = threading.Thread(
                     target=listen, daemon=True)
@@ -61,7 +61,7 @@ def process(message):
             acct = chat.Account(type=0, username=pmessage,
                                 connection=str(channel))
             res = conn.ChangeAccountState(acct)
-            if res:
+            if res.status == 0:
                 username = pmessage
                 listen_thread = threading.Thread(
                     target=listen, daemon=True)
@@ -74,7 +74,7 @@ def process(message):
             acct = chat.Account(type=1, username=username,
                                 connection=str(channel))
             res = conn.ChangeAccountState(acct)
-            if res:
+            if res.status == 0:
                 username = ''
                 # listen_thread.join()
         else:
