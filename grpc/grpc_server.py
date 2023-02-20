@@ -30,7 +30,7 @@ class ChatServer(rpc.BidirectionalServicer):
         Every stream is unique since we instantiate a class object for each connection
         """
         try:
-        # For every client a infinite loop starts (in gRPC's own managed thread)
+            # For every client a infinite loop starts (in gRPC's own managed thread)
             while context.is_active():
                 # Check if there are any new messages
                 account_lock.acquire(timeout=3)
@@ -47,14 +47,15 @@ class ChatServer(rpc.BidirectionalServicer):
                 # check if logged out or deleted account
                 account_lock.acquire(timeout=3)
                 if request.username not in account_dict.keys():
+                    account_lock.release()
                     print(request.username + " deleted.")
                     return
                 else:
                     if account_dict[request.username] == 0:
+                        account_lock.release()
                         print(request.username + " logged out.")
                         return
                 account_lock.release()
-                
 
             # In case of broken connection
             if context.is_active() == False:
@@ -76,8 +77,6 @@ class ChatServer(rpc.BidirectionalServicer):
                     account_dict[request.username] = 0
             account_lock.release()
             return
-            
-        
 
     def ServerSend(self, request: chat.Text, context):
         """
