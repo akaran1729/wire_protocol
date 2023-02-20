@@ -40,27 +40,42 @@ class ChatServer(rpc.BidirectionalServicer):
                         while len(msg_dict[request.username]) > 0:
                             text = msg_dict[request.username].pop(0)
                             yield text
+                            print(text)
                         msg_lock.release()
                 account_lock.release()
 
+                # check if logged out or deleted account
+                account_lock.acquire(timeout=3)
+                if request.username not in account_dict.keys():
+                    print(request.username + " deleted.")
+                    return
+                else:
+                    if account_dict[request.username] == 0:
+                        print(request.username + " logged out.")
+                        return
+                account_lock.release()
+                
+
             # In case of broken connection
             if context.is_active() == False:
-                print(request.username + " disconnected")
+                print(request.username + " disconnected.")
                 account_lock.acquire(timeout=3)
                 if request.username in account_dict.keys():
                     if account_dict[request.username] != 0:
                         account_dict[request.username] = 0
                 account_lock.release()
+                return
 
         # Any other interruption will automatically disconnect
         except Exception as e:
             print(e)
-            print(request.username + " disconnected")
+            print(request.username + " disconnected.")
             account_lock.acquire(timeout=3)
             if request.username in account_dict.keys():
                 if account_dict[request.username] != 0:
                     account_dict[request.username] = 0
             account_lock.release()
+            return
             
         
 
