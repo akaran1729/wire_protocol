@@ -16,9 +16,8 @@ if len(sys.argv) != 3:
 IP_address = str(sys.argv[1])
 Port = sys.argv[2]
 channel = grpc.insecure_channel(IP_address + ':' + Port)
-print(channel)
 conn = rpc.BidirectionalStub(channel)
-print(conn)
+
 # create new listening thread for when new message streams come in
 # could be an issue here with concurrency, check this and may have to switch to class objects
 
@@ -27,13 +26,14 @@ listen_thread = None
 
 
 def listen():
-    this_acc = chat.Account(type=0, username=username,
-                            connection=str(channel))
-    try:
-        for text in conn.ClientStream(this_acc):
-            print("<"+text.sender+">: " + text.message)
-    except Exception as e:
-        print(e)
+    if username != '':
+        this_acc = chat.Account(type=0, username=username,
+                                connection=str(channel))
+        try:
+            for text in conn.ClientStream(this_acc):
+                print("<"+text.sender+">: " + text.message)
+        except Exception as e:
+            print(e)
 
 
 def process(message):
@@ -44,6 +44,10 @@ def process(message):
     if message.find('Create Account') == 0:
         if username == '':
             pmessage = input('username:')
+            if len(pmessage) > MAX_RECIPIENT_LENGTH:
+                print('username must be under 50 characters')
+                res = None
+                return res
             acct = chat.Account(type=3, username=pmessage,
                                 connection=str(channel))
             res = conn.ChangeAccountState(acct)
@@ -76,7 +80,6 @@ def process(message):
             res = conn.ChangeAccountState(acct)
             if res.status == 0:
                 username = ''
-                # listen_thread.join()
         else:
             res = None
             print('Please log in first')
@@ -93,6 +96,10 @@ def process(message):
         if username != '':
             receiver = input('to: ')
             text = input('begin message: ')
+            if len(text) > MAX_MESSAGE_LENGTH:
+                res = None
+                print("Message must be under 250 characters")
+                return res
             res = conn.ServerSend(chat.Text(sender=username,
                                             receiver=receiver, message=text))
         else:
@@ -112,10 +119,6 @@ def process(message):
         return
     return res
 
-
-# Keywords that client side parses and tags to send to the server
-MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout',
-                'Delete Account', 'Send', 'List Accounts']
 
 print("Welcome to Messenger! Login or create an account to get started!")
 while True:

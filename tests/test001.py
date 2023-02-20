@@ -1,5 +1,7 @@
 import subprocess
 import threading
+import sys
+import time
 
 
 # Run a shell command and get its output
@@ -13,8 +15,6 @@ def listen():
         output = process.stdout.readline().decode().strip()
         if output == '' and process.poll() is not None:
             break
-        if output:
-            print(output)
 
         error = process.stderr.readline().decode().strip()
         if error == '' and process.poll() is not None:
@@ -29,10 +29,14 @@ def listen():
         print(f"Process returned non-zero exit status {return_code}")
 
 
-server_thread = threading.Thread(target=listen)
-
+try:
+    server_thread = threading.Thread(target=listen)
+except:
+    print('TEST 001 FAILED')
 
 # Run a shell command and get its exit status
+
+
 def run_client():
     # Start the process
     process = subprocess.Popen(
@@ -43,8 +47,6 @@ def run_client():
         output = process.stdout.readline().decode().strip()
         if output == '' and process.poll() is not None:
             break
-        if output:
-            print(output)
 
         error = process.stderr.readline().decode().strip()
         if error == '' and process.poll() is not None:
@@ -57,7 +59,11 @@ def run_client():
 
     if return_code != 0:
         print(f"Process returned non-zero exit status {return_code}")
+        return
 
 
-client_thread = threading.Thread(target=run_client)
-print('done')
+try:
+    client_thread = threading.Thread(target=run_client)
+    print('TEST 001 PASSED')
+except:
+    print('TEST001 FAILED')

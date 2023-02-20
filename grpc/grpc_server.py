@@ -29,6 +29,8 @@ class ChatServer(rpc.BidirectionalServicer):
         Every client opens this connection and waits for server to send new messages
         Every stream is unique since we instantiate a class object for each connection
         """
+        if len(request.username) > 50:
+            return
         try:
             # For every client a infinite loop starts (in gRPC's own managed thread)
             while context.is_active():
@@ -48,7 +50,7 @@ class ChatServer(rpc.BidirectionalServicer):
                 account_lock.acquire(timeout=3)
                 if request.username not in account_dict.keys():
                     account_lock.release()
-                    print(request.username + " deleted.")
+                    print("username not found", request.username)
                     return
                 else:
                     if account_dict[request.username] == 0:
@@ -80,12 +82,15 @@ class ChatServer(rpc.BidirectionalServicer):
 
     def ServerSend(self, request: chat.Text, context):
         """
-        This method is called when a clients sends a Note to the server.
+        This method is called when a clients sends a message to the server.
         :param request:
         :param context:
         :return:
         """
         res = chat.Res(status=0)
+        if len(request.message) > 250 or len(request.receiver) > 50 or len(request.sender) > 50:
+            res.status = -1
+            return res
         msg_lock.acquire(timeout=10)
         try:
             # this is only for the server console
@@ -105,46 +110,49 @@ class ChatServer(rpc.BidirectionalServicer):
     def ChangeAccountState(self, request: chat.Account, context):
         res = chat.Res(status=-1)
         account_lock.acquire(timeout=10)
-        # login
-        if request.type == 0:
-            if request.username in account_dict.keys():
-                if account_dict[request.username] == 0:
+        if len(request.username) <= 50:
+            # login
+            if request.type == 0:
+                if request.username in account_dict.keys():
+                    if account_dict[request.username] == 0:
+                        account_dict[request.username] = request.connection
+                        res.status = 0
+                else:
+                    res.status = 1
+            # logout
+            elif request.type == 1:
+                if request.username in account_dict.keys():
+                    if account_dict[request.username] != 0:
+                        account_dict[request.username] = 0
+                        res.status = 0
+                else:
+                    res.status = 1
+            # delete account
+            elif request.type == 2:
+                if request.username in account_dict.keys() and request.username in msg_dict.keys():
+                    account_dict.pop(request.username)
+                    msg_lock.acquire(timeout=10)
+                    msg_dict.pop(request.username)
+                    msg_lock.release()
+                    res.status = 0
+                else:
+                    res.status = 1
+            # create account
+            elif request.type == 3:
+                if request.username not in account_dict.keys():
                     account_dict[request.username] = request.connection
+                    msg_dict[request.username] = []
                     res.status = 0
-            else:
-                res.status = 1
-        # logout
-        elif request.type == 1:
-            if request.username in account_dict.keys():
-                if account_dict[request.username] != 0:
-                    account_dict[request.username] = 0
-                    res.status = 0
-            else:
-                res.status = 1
-        # delete account
-        elif request.type == 2:
-            if request.username in account_dict.keys() and request.username in msg_dict.keys():
-                account_dict.pop(request.username)
-                msg_lock.acquire(timeout=10)
-                msg_dict.pop(request.username)
-                msg_lock.release()
-                res.status = 0
-            else:
-                res.status = 1
-        # create account
-        elif request.type == 3:
-            if request.username not in account_dict.keys():
-                account_dict[request.username] = request.connection
-                msg_dict[request.username] = []
-                res.status = 0
-            else:
-                res.status = 2
+                else:
+                    res.status = 2
         account_lock.release()
         print(account_dict)
         return res
 
     def ListAccounts(self, request, context):
         query = request.match
+        if len(query) > 50:
+            return chat.List(list='query too long, must be under 50 chars')
         # query = query.replace('*', ".*")
         res = ''
         counter = 0
@@ -152,7 +160,7 @@ class ChatServer(rpc.BidirectionalServicer):
         try:
             for key in account_dict.keys():
                 match = re.search(query, key)
-                if match is not None:
+                if match is not None and match.group() == key:
                     res += key + " "
                     counter += 1
                 if counter >= request.number:
