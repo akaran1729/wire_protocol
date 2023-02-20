@@ -16,17 +16,20 @@ server.connect((IP_address, Port))
 
 
 # Keywords that client side parses and tags to send to the server
-MESSAGE_KEYS = ['Create Account: ', 'Login: ', 'Logout',
+MESSAGE_KEYS = ['Create Account', 'Login', 'Logout',
                 'Delete Account', 'Send', 'List Accounts']
 
 
 # To Do: limits on message and username lengths
 
 # always returns encoded message
-def process(message):
+def process(message, client_logged_in):
     message = message.rstrip()
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
+        if client_logged_in == True:
+            print("Please logout to create an account.")
+            return
         name = ""
         name_max = False
         # Ensures created accounts are no more than the max alotted length
@@ -37,24 +40,36 @@ def process(message):
                 name_max = True
             else:
                 print("All usernames must be at most " +
-                      str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
+                    str(MAX_RECIPIENT_LENGTH) + " characters. Please try again.")
         message = name
         message = message.encode()
         tag = (0).to_bytes(1, "big")
     elif message.find('Login') == 0:
+        if client_logged_in == True:
+            print("Please logout to login.")
+            return
         message = sys.stdin.readline()
         message = message.rstrip()
         message = message.encode()
         tag = (1).to_bytes(1, "big")
     elif message.find('Logout') == 0:
+        if client_logged_in == False:
+            print("Currently logged out. Please create an account or login.")
+            return
         message = ""
         message = message.encode()
         tag = (2).to_bytes(1, "big")
     elif message.find('Delete Account') == 0:
+        if client_logged_in == False:
+            print("Currently logged out. Please create an account or login.")
+            return
         message = ""
         message = message.encode()
         tag = (3).to_bytes(1, "big")
     elif message.find("Send") == 0:
+        if client_logged_in == False:
+            print("Currently logged out. Please create an account or login.")
+            return
         print("To: ")
         recipient = ""
         rec_max = False
@@ -88,10 +103,16 @@ def process(message):
         tag = type_tag + recep_tag + recipient
     # TODO this is clunky, we should dump messages when user logs in
     elif message.find("Open Undelivered Messages") == 0:
+        if client_logged_in == False:
+            print("Currently logged out. Please create an account or login.")
+            return
         message = ""
         message = message.encode()
         tag = (5).to_bytes(1, "big")
     elif message.find("List Accounts") == 0:
+        if client_logged_in == False:
+            print("Currently logged out. Please create an account or login.")
+            return
         message = sys.stdin.readline()
         message = message.rstrip()
         message = message.encode()
@@ -103,6 +124,9 @@ def process(message):
     bmsg = tag + message
     return bmsg
 
+
+global client_logged_in
+client_logged_in = False
 
 while True:
 
@@ -120,16 +144,20 @@ while True:
     read_sockets, write_socket, error_socket = select.select(
         sockets_list, [], [])
     
-    client_logged_in = False
 
     for socks in read_sockets:
         if socks == server:
             message = socks.recv(2048)
-            dmessage = message.decode()
+            tag = message[0]
+            if tag == 0:
+                client_logged_in = False
+            else:
+                client_logged_in = True
+            dmessage = message[1:].decode()
             print(dmessage)
         else:
             message = sys.stdin.readline()
-            bmsg = process(message)
+            bmsg = process(message, client_logged_in)
             if bmsg:
                 try:
                     server.send(bmsg)

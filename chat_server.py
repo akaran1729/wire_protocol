@@ -59,7 +59,9 @@ def clientthread(conn, addr):
         print("here again")
         # sends a message to the client whose user object is conn
         message = "Welcome to Messenger! Please login or create an account:"
-        conn.sendall(message.encode())
+        return_tag = (0).to_bytes(1, "big")
+        bmsg = return_tag + message.encode()
+        conn.sendall(bmsg)
 
         # client can only create an account or login while client state is False
         # To Do: big endian byte interpretation
@@ -83,12 +85,16 @@ def clientthread(conn, addr):
 
                     if username in client_dictionary.keys():
                         message = "The account " + username + " already exists. Please try again."
-                        conn.sendall(message.encode())
+                        return_tag = (0).to_bytes(1, "big")
+                        bmsg = return_tag + message.encode()
+                        conn.sendall(bmsg)
                     else:
                         client_dictionary[username] = conn
                         message_queue[username] = []
                         message = "Account created. Welcome " + username + "!"
-                        conn.sendall(message.encode())
+                        return_tag = (1).to_bytes(1, "big")
+                        bmsg = return_tag + message.encode()
+                        conn.sendall(bmsg)
                         logged_in = True
 
                     dict_lock.release()
@@ -103,16 +109,22 @@ def clientthread(conn, addr):
 
                     if username not in client_dictionary.keys():
                         message = "Username not found. Please try again."
-                        conn.sendall(message.encode())
+                        return_tag = (0).to_bytes(1, "big")
+                        bmsg = return_tag + message.encode()
+                        conn.sendall(bmsg)
                     else:
                         # Check if username logged in elsewhere (i.e. dictionary returns 1)
                         if client_dictionary[username] != 0:
                             message = "Username logged in elsewhere. Please try again."
-                            conn.sendall(message.encode())
+                            return_tag = (0).to_bytes(1, "big")
+                            bmsg = return_tag + message.encode()
+                            conn.sendall(bmsg)
                         else:
                             client_dictionary[username] = conn
                             message = "Welcome back " + username + "!"
-                            conn.sendall(message.encode())
+                            return_tag = (1).to_bytes(1, "big")
+                            bmsg = return_tag + message.encode()
+                            conn.sendall(bmsg)
                             logged_in = True
                     print(client_dictionary)
                     dict_lock.release()
@@ -133,7 +145,9 @@ def clientthread(conn, addr):
                         # Acquire dict lock, change logged in state to false and remove address info in client dictionary
                         logout(username)
                         message = username + " successfully logged out. \n"
-                        conn.sendall(message.encode())
+                        return_tag = (0).to_bytes(1, "big")
+                        bmsg = return_tag + message.encode()
+                        conn.sendall(bmsg)
                         logged_in = False
 
                     # Delete Account
@@ -145,7 +159,9 @@ def clientthread(conn, addr):
                         logged_in = False
                         dict_lock.release()
                         message = "Account " + username + " successfully deleted. \n"
-                        conn.sendall(message.encode())
+                        return_tag = (0).to_bytes(1, "big")
+                        bmsg = return_tag + message.encode()
+                        conn.sendall(bmsg)
 
                     # Send Message
                     if tag == 4:
@@ -158,7 +174,9 @@ def clientthread(conn, addr):
                         # Checks if recipeint is actually a possible recipient
                         if recep_username not in client_dictionary.keys():
                             message = "Sorry, message recipient not found. Please try again. \n"
-                            conn.sendall(message.encode())
+                            return_tag = (1).to_bytes(1, "big")
+                            bmsg = return_tag + message.encode()
+                            conn.sendall(bmsg)
                         else:
                             text_message = message[2+length_of_recep:].decode()
                             # Checks if recipient logged out
@@ -166,19 +184,26 @@ def clientthread(conn, addr):
                                 message_queue[recep_username].append(
                                     [username, text_message])
                                 confirmation_message = "\nMessage successfully sent."
-                                conn.sendall(confirmation_message.encode())
+                                return_tag = (1).to_bytes(1, "big")
+                                bmsg = return_tag + confirmation_message.encode()
+                                conn.sendall(bmsg)
                             # If logged in, look up connection in dictionary
                             else:
                                 recep_conn = client_dictionary[recep_username]
                                 new_message = "<"+username+">: " + text_message
                                 try:
-                                    recep_conn.sendall(new_message.encode())
+                                    return_tag = (1).to_bytes(1, "big")
+                                    bmsg = return_tag + new_message.encode()
+                                    recep_conn.sendall(bmsg)
                                     confirmation_message = "\nMessage successfully sent."
-                                    conn.sendall(confirmation_message.encode())
+                                    bmsg = return_tag + confirmation_message.encode()
+                                    conn.sendall(bmsg)
                                 # If sending fails, let the sender know; otherwise, send confirmation to sender
                                 except:
                                     error_message = "Sorry, message could not be sent. Please try again."
-                                    conn.sendall(error_message.encode())
+                                    return_tag = (1).to_bytes(1, "big")
+                                    bmsg = return_tag + error_message.encode()
+                                    conn.sendall(bmsg)
 
                         # To Do: Ask about blocking and ask about timeouts? What happened if send fails?
                         dict_lock.release()
@@ -191,9 +216,10 @@ def clientthread(conn, addr):
                             undel_message = undelivered[1]
                             # To Do: username will have /n at the end
                             message = "<" + sender + ">: " + undel_message
-                            conn.sendall(message.encode())
+                            return_tag = (1).to_bytes(1, "big")
+                            bmsg = return_tag + message.encode()
+                            conn.sendall(bmsg)
 
-                    # To DO: List Accounts
                     if tag == 6:
                         query = message[1:].decode()
                         dict_lock.acquire(timeout=10)
@@ -204,16 +230,17 @@ def clientthread(conn, addr):
                         else:
                             res = "Users matching " + query + '\n'
                             res += users
-                        conn.sendall(res.encode())
+                        
+                        return_tag = (1).to_bytes(1, "big")
+                        bmsg = return_tag + res.encode()
+                        conn.sendall(bmsg)
 
                 else:
                     """message may have no content if the connection
                     is broken, in this case we remove the connection"""
-                    # To Do: Log out if connection is broken; how do we check if connection breaks?
                     remove(conn, username)
                     logged_in = False
                     client_state = False
-                    # To Do: How to check if connection still present
 
             # except Exception as e:
             except:
