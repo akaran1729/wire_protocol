@@ -119,6 +119,8 @@ while True:
     condition will evaluate as true"""
     read_sockets, write_socket, error_socket = select.select(
         sockets_list, [], [])
+    
+    client_logged_in = False
 
     for socks in read_sockets:
         if socks == server:

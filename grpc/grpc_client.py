@@ -31,7 +31,7 @@ def listen():
                             connection=str(channel))
     try:
         for text in conn.ClientStream(this_acc):
-            print(text.sender, text.message)
+            print("<"+text.sender+">: " + text.message)
     except Exception as e:
         print(e)
 
