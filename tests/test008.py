@@ -1,4 +1,4 @@
-# Test for basic send message functionality
+# Test for grpc message sending to nonexistent user
 import threading
 import select
 import sys
@@ -20,38 +20,21 @@ conn2 = rpc.BidirectionalStub(channel2)
 
 
 accounts = ['yush', 'mike']
-output1 = ''
 
 conn1.ChangeAccountState(chat.Account(
     type=3, username=accounts[0], connection=str(channel1)))
-conn2.ChangeAccountState(chat.Account(
-    type=3, username=accounts[1], connection=str(channel2)))
 
-
-def listen():
-    global output1
-    for text in conn2.ClientStream(chat.Account(
-            type=0, username=accounts[1], connection=str(channel2))):
-        output1 = "<"+text.sender+">: " + text.message
-        return
-
-
-listen_thread = threading.Thread(target=listen, daemon=True)
-listen_thread.start()
-
-conn1.ServerSend(
+res = conn1.ServerSend(
     chat.Text(sender=accounts[0], receiver=accounts[1], message='yo'))
 
-time.sleep(1)
-if output1 == "<yush>: yo":
-    print("TEST007 PASSED")
+if res.status == 1:
+    print("TEST008 PASSED")
     conn1.ChangeAccountState(chat.Account(
         type=2, username='yush', connection=str(channel1)))
     conn2.ChangeAccountState(chat.Account(
         type=2, username='mike', connection=str(channel2)))
 else:
-    print(output1)
-    print("TEST007 FAILED")
+    print("TEST008 FAILED")
     conn1.ChangeAccountState(chat.Account(
         type=2, username='yush', connection=str(channel1)))
     conn2.ChangeAccountState(chat.Account(

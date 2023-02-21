@@ -50,7 +50,8 @@ class ChatServer(rpc.BidirectionalServicer):
                 account_lock.acquire(timeout=3)
                 if request.username not in account_dict.keys():
                     account_lock.release()
-                    print("username not found", request.username)
+                    print("username not found, account was deleted: ",
+                          request.username)
                     return
                 else:
                     if account_dict[request.username] == 0:
@@ -141,7 +142,9 @@ class ChatServer(rpc.BidirectionalServicer):
             elif request.type == 3:
                 if request.username not in account_dict.keys():
                     account_dict[request.username] = request.connection
+                    msg_lock.acquire(timeout=10)
                     msg_dict[request.username] = []
+                    msg_lock.release()
                     res.status = 0
                 else:
                     res.status = 2

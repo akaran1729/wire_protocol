@@ -43,7 +43,7 @@ def process(message):
     # Messages are first entered as types, and are tagged based on those types
     if message.find('Create Account') == 0:
         if username == '':
-            pmessage = input('username:')
+            pmessage = input('username:').rstrip()
             if len(pmessage) > MAX_RECIPIENT_LENGTH:
                 print('username must be under 50 characters')
                 res = None
@@ -61,7 +61,7 @@ def process(message):
             res = None
     elif message.find('Login') == 0:
         if username == '':
-            pmessage = input("username:")
+            pmessage = input("username:").rstrip()
             acct = chat.Account(type=0, username=pmessage,
                                 connection=str(channel))
             res = conn.ChangeAccountState(acct)
@@ -94,7 +94,7 @@ def process(message):
             print('Please log in first')
     elif message.find("Send") == 0:
         if username != '':
-            receiver = input('to: ')
+            receiver = input('to: ').rstrip()
             text = input('begin message: ')
             if len(text) > MAX_MESSAGE_LENGTH:
                 res = None
@@ -106,7 +106,7 @@ def process(message):
             res = None
             print('Please log in first')
     elif message.find("List Accounts") == 0:
-        query = input('search users: ')
+        query = input('search users: ').rstrip()
         number = int(input('number of matches: '))
         results = conn.ListAccounts(chat.Query(match=query, number=number))
         print(results.list)

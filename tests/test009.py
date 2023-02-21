@@ -1,4 +1,4 @@
-# Test for basic send message functionality
+# Test for delivering messages once person logs in
 import threading
 import select
 import sys
@@ -27,6 +27,9 @@ conn1.ChangeAccountState(chat.Account(
 conn2.ChangeAccountState(chat.Account(
     type=3, username=accounts[1], connection=str(channel2)))
 
+conn2.ChangeAccountState(chat.Account(
+    type=1, username=accounts[1], connection=str(channel2)))
+
 
 def listen():
     global output1
@@ -36,22 +39,31 @@ def listen():
         return
 
 
+conn1.ServerSend(
+    chat.Text(sender=accounts[0], receiver=accounts[1], message='yo'))
+conn1.ServerSend(
+    chat.Text(sender=accounts[0], receiver=accounts[1], message='mike'))
+
+time.sleep(1)
+
+conn2.ChangeAccountState(chat.Account(
+    type=0, username=accounts[1], connection=str(channel2)))
+
+
 listen_thread = threading.Thread(target=listen, daemon=True)
 listen_thread.start()
 
-conn1.ServerSend(
-    chat.Text(sender=accounts[0], receiver=accounts[1], message='yo'))
-
 time.sleep(1)
+
 if output1 == "<yush>: yo":
-    print("TEST007 PASSED")
+    print("TEST009 PASSED")
     conn1.ChangeAccountState(chat.Account(
         type=2, username='yush', connection=str(channel1)))
     conn2.ChangeAccountState(chat.Account(
         type=2, username='mike', connection=str(channel2)))
 else:
     print(output1)
-    print("TEST007 FAILED")
+    print("TEST009 FAILED")
     conn1.ChangeAccountState(chat.Account(
         type=2, username='yush', connection=str(channel1)))
     conn2.ChangeAccountState(chat.Account(
